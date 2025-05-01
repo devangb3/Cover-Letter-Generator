@@ -24,6 +24,12 @@ CORS(app)
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY') 
 if not GEMINI_API_KEY:
     logger.warning("GEMINI_API_KEY not set in environment")
+API_SERVICE_URL = os.environ.get('API_SERVICE_URL', 'http://localhost:5001')
+if not API_SERVICE_URL:
+    logger.warning("API_SERVICE_URL not set in environment")
+PDF_SERVICE_URL = os.environ.get('PDF_SERVICE_URL', 'http://localhost:5002')
+if not PDF_SERVICE_URL:
+    logger.warning("PDF_SERVICE_URL not set in environment")
 
 @app.route('/')
 def index():
@@ -48,7 +54,7 @@ def analyze_resume():
         # Forward the request to the API service
         logger.info("Forwarding request to API service")
         api_response = requests.post(
-            'http://localhost:5001/process',
+            API_SERVICE_URL + '/process',
             json={
                 'jobDescription': job_description,
                 'companyName': company_name,
@@ -82,7 +88,7 @@ def generate_pdf():
         # Forward the request to the PDF service
         logger.info("Forwarding request to PDF service")
         pdf_response = requests.post(
-            'http://localhost:5002/generate',
+            PDF_SERVICE_URL + '/generate',
             json=data
         )
         
@@ -119,4 +125,4 @@ def download_file(filename):
 
 if __name__ == '__main__':
     logger.info("Starting backend server on port 5000")
-    app.run(debug=True, port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)

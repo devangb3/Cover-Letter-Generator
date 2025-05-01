@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import './App.css';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 function App() {
   const [jobDescription, setJobDescription] = useState('');
   const [companyName, setCompanyName] = useState('');
@@ -77,7 +79,7 @@ function App() {
 
       // Step 1: Call API to generate cover letter content
       console.log("Calling analyze endpoint...");
-      const analyzeResponse = await fetch('http://localhost:5000/api/analyze', {
+      const analyzeResponse = await fetch(`${API_URL}/api/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -126,7 +128,7 @@ function App() {
 
       // Step 2: Generate PDF
       console.log("Calling generate-pdf endpoint...");
-      const generateResponse = await fetch('http://localhost:5000/api/generate-pdf', {
+      const generateResponse = await fetch(`${API_URL}/api/generate-pdf`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -327,7 +329,7 @@ function App() {
             <h2>Download Cover Letter</h2>
             <div className="download-buttons">
               <a 
-                href={`http://localhost:5000/api/download/${file}`}
+                href={`${API_URL}/api/download/${file}`}
                 className="download-button"
                 download
               >
