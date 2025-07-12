@@ -7,7 +7,6 @@ from flask_cors import CORS
 import google.generativeai as genai
 from pypdf import PdfReader
 
-# Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -21,14 +20,12 @@ logger = logging.getLogger('api_service')
 app = Flask(__name__)
 CORS(app)
 
-# Configure API keys from environment
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 if not GEMINI_API_KEY:
     logger.warning("GEMINI_API_KEY not set in environment")
 else:
     logger.info("GEMINI_API_KEY found in environment")
 
-# Configure Gemini API
 try:
     genai.configure(api_key=GEMINI_API_KEY)
     logger.info("Gemini API configured successfully")
@@ -38,7 +35,6 @@ except Exception as e:
 
 def load_resume():
     try:
-        # Fixed path to the resume PDF
         pdf_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static', 'resume.pdf')
         logger.info(f"Loading resume from: {pdf_path}")
         
@@ -80,7 +76,6 @@ def process():
         logger.debug(f"Custom instructions length: {len(custom_instructions)}")
         logger.debug(f"Personal info: {personal_info}")
         
-        # Format personal info as text for the prompt
         personal_info_text = ""
         if personal_info:
             personal_info_text = "About me:\n"
@@ -88,14 +83,12 @@ def process():
                 if value and key != 'address' and key != 'linkedin' and key != 'website':
                     personal_info_text += f"{key.capitalize()}: {value}\n"
         
-        # Load the resume content
         resume_text = load_resume()
         if resume_text.startswith("Error"):
             logger.error("Failed to load resume text")
             return jsonify({'error': resume_text}), 500
             
         logger.info("Preparing prompt for Gemini API")
-        # Call Gemini API for just the cover letter content
         prompt = f"""
         Write a professional cover letter for a job application to {company_name}. I need ONLY the main body text of the cover letter.
         DO NOT include any formatting, header, address, date, greeting, or signature - those will be added later.
@@ -132,11 +125,9 @@ def process():
             response = model.generate_content(prompt)
             logger.info("Received response from Gemini API")
             
-            # Just get the raw text response
             cover_letter_text = response.text.strip()
             logger.debug(f"Cover letter text length: {len(cover_letter_text)}")
             
-            # Create a simple result with just the cover letter text
             result = {
                 'coverLetter': cover_letter_text,
                 'personalInfo': personal_info,

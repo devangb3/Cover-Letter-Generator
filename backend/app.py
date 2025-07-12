@@ -51,7 +51,6 @@ def analyze_resume():
         logger.debug(f"Custom instructions length: {len(custom_instructions)}")
         logger.debug(f"Personal info: {personal_info}")
         
-        # Forward the request to the API service
         logger.info("Forwarding request to API service")
         api_response = requests.post(
             API_SERVICE_URL + '/process',
@@ -63,7 +62,6 @@ def analyze_resume():
             }
         )
         
-        # Forward the response from the API service
         if api_response.status_code == 200:
             logger.info("Successfully received API response")
             response_data = api_response.json()
@@ -85,7 +83,6 @@ def generate_pdf():
         data = request.json
         logger.debug(f"PDF generation data keys: {list(data.keys())}")
         
-        # Forward the request to the PDF service
         logger.info("Forwarding request to PDF service")
         pdf_response = requests.post(
             PDF_SERVICE_URL + '/generate',
