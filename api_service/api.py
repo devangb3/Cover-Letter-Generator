@@ -117,7 +117,7 @@ def process():
         """
 
         logger.info("Calling Gemini API")
-        model = genai.GenerativeModel('gemini-2.5-flash-preview-04-17')
+        model = genai.GenerativeModel('gemini-2.5-pro')
         logger.debug("Gemini model initialized")
         
         try:
