@@ -1,12 +1,15 @@
 import os
+import sys
 import logging
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
-import json
-import requests
 import traceback
 
-# Configure logging
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+from api_service.ai_service import generate_cover_letter
+from pdf_service.pdf_generator import generate_cover_letter_pdf
+
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -23,12 +26,6 @@ CORS(app)
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY') 
 if not GEMINI_API_KEY:
     logger.warning("GEMINI_API_KEY not set in environment")
-API_SERVICE_URL = os.environ.get('API_SERVICE_URL', 'http://localhost:5001')
-if not API_SERVICE_URL:
-    logger.warning("API_SERVICE_URL not set in environment")
-PDF_SERVICE_URL = os.environ.get('PDF_SERVICE_URL', 'http://localhost:5002')
-if not PDF_SERVICE_URL:
-    logger.warning("PDF_SERVICE_URL not set in environment")
 
 @app.route('/')
 def index():
@@ -50,25 +47,16 @@ def analyze_resume():
         logger.debug(f"Custom instructions length: {len(custom_instructions)}")
         logger.debug(f"Personal info: {personal_info}")
         
-        logger.info("Forwarding request to API service")
-        api_response = requests.post(
-            API_SERVICE_URL + '/process',
-            json={
-                'jobDescription': job_description,
-                'companyName': company_name,
-                'customInstructions': custom_instructions,
-                'personalInfo': personal_info
-            }
-        )
+        logger.info("Processing request with AI service directly")
+        result = generate_cover_letter(job_description, company_name, custom_instructions, personal_info)
         
-        if api_response.status_code == 200:
-            logger.info("Successfully received API response")
-            response_data = api_response.json()
-            logger.debug(f"API response keys: {list(response_data.keys())}")
-            return jsonify(response_data), 200
+        if 'error' in result:
+            logger.error(f"AI service error: {result['error']}")
+            return jsonify(result), 500
         else:
-            logger.error(f"API service error: {api_response.status_code} - {api_response.text}")
-            return jsonify({'error': 'Failed to process with AI service', 'details': api_response.text}), 500
+            logger.info("Successfully generated cover letter")
+            logger.debug(f"AI response keys: {list(result.keys())}")
+            return jsonify(result), 200
     
     except Exception as e:
         logger.error(f"Error in analyze_resume: {str(e)}")
@@ -82,20 +70,14 @@ def generate_pdf():
         data = request.json
         logger.debug(f"PDF generation data keys: {list(data.keys())}")
         
-        logger.info("Forwarding request to PDF service")
-        pdf_response = requests.post(
-            PDF_SERVICE_URL + '/generate',
-            json=data
-        )
+        logger.info("Generating PDF directly using service")
+        cover_letter_filename = generate_cover_letter_pdf(data)
         
-        if pdf_response.status_code == 200:
-            logger.info("Successfully received PDF generation response")
-            response_data = pdf_response.json()
-            logger.debug(f"PDF response: {response_data}")
-            return jsonify(response_data), 200
-        else:
-            logger.error(f"PDF service error: {pdf_response.status_code} - {pdf_response.text}")
-            return jsonify({'error': 'Failed to generate PDF', 'details': pdf_response.text}), 500
+        response = {
+            'coverLetterFile': cover_letter_filename
+        }
+        logger.info(f"Successfully generated PDF: {response}")
+        return jsonify(response), 200
     
     except Exception as e:
         logger.error(f"Error in generate_pdf: {str(e)}")
