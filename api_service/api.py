@@ -4,8 +4,11 @@ import logging
 import traceback
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import google.generativeai as genai
+from google import genai
+from google.genai import types
+from google.genai.types import GenerateContentConfig
 from pypdf import PdfReader
+import httpx
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -25,13 +28,6 @@ if not GEMINI_API_KEY:
     logger.warning("GEMINI_API_KEY not set in environment")
 else:
     logger.info("GEMINI_API_KEY found in environment")
-
-try:
-    genai.configure(api_key=GEMINI_API_KEY)
-    logger.info("Gemini API configured successfully")
-except Exception as e:
-    logger.error(f"Error configuring Gemini API: {str(e)}")
-    logger.error(traceback.format_exc())
 
 def load_resume():
     try:
@@ -89,12 +85,16 @@ def process():
             return jsonify({'error': resume_text}), 500
             
         logger.info("Preparing prompt for Gemini API")
+        system_instruction = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'system_instruction.txt')
+        with open(system_instruction, 'r') as file:
+            system_instruction = file.read()         
+
         prompt = f"""
+        
         Write a professional cover letter for a job application to {company_name}. I need ONLY the main body text of the cover letter.
         DO NOT include any formatting, header, address, date, greeting, or signature - those will be added later.
         
-        My Resume: 
-        {resume_text}
+        My Resume is attached as a PDF file in the data. 
         
         {personal_info_text}
 
@@ -104,25 +104,29 @@ def process():
         Company Name: {company_name}
 
         {custom_instructions if custom_instructions else ""}
-
-        Write a personalized cover letter text that highlights my fit for this role at {company_name} based on my experience and the job requirements.
-        Make sure to:
-        1. Focus on my relevant skills and experience that match the job requirements
-        2. Explain why I am interested in this position and specifically in {company_name} as a company
-        3. Keep it concise, professional, and persuasive
-        4. Don't mention specific formatting or layout details
-        5. Reference the company name ({company_name}) at least twice in the letter
-
-        Return ONLY the cover letter body paragraphs, no salutation, no closing.
         """
+        logger.info("Downloading resume")
+        doc_url = "https://devang-borkar.netlify.app/Devang_Resume.pdf"
+        doc_data = httpx.get(doc_url).content
+        logger.info("Downloaded resume")
 
         logger.info("Calling Gemini API")
-        model = genai.GenerativeModel('gemini-2.5-pro')
+        client = genai.Client(api_key=GEMINI_API_KEY)
         logger.debug("Gemini model initialized")
-        
         try:
             logger.debug("Sending request to Gemini API")
-            response = model.generate_content(prompt)
+            response = client.models.generate_content(
+                model="gemini-2.5-pro",
+                contents=[types.Part.from_bytes(
+                    data=doc_data,
+                    mime_type="application/pdf"
+                ),
+                prompt
+                ],
+                config=GenerateContentConfig(
+                    system_instruction=system_instruction,
+                )
+            )
             logger.info("Received response from Gemini API")
             
             cover_letter_text = response.text.strip()

@@ -20,7 +20,6 @@ logger = logging.getLogger('backend')
 app = Flask(__name__, static_folder='../static')
 CORS(app)
 
-# Configure API keys from environment
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY') 
 if not GEMINI_API_KEY:
     logger.warning("GEMINI_API_KEY not set in environment")
