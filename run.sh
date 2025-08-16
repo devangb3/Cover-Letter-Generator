@@ -13,6 +13,8 @@ BACKEND_PID=$!
 
 echo "Starting frontend on port 3002..."
 cd frontend
+# Set the API URL to point to local backend for development
+export REACT_APP_API_URL="http://localhost:5000"
 PORT=3002 npm start &
 FRONTEND_PID=$!
 
