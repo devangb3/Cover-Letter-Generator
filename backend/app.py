@@ -1,7 +1,7 @@
 import os
 import sys
 import logging
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 import traceback
 
@@ -20,17 +20,21 @@ logging.basicConfig(
 )
 logger = logging.getLogger('backend')
 
-app = Flask(__name__, static_folder='../static')
+app = Flask(__name__, static_folder='../frontend/build')
 CORS(app)
 
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY') 
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 if not GEMINI_API_KEY:
     logger.warning("GEMINI_API_KEY not set in environment")
 
-@app.route('/')
-def index():
-    logger.info("Serving index page")
-    return app.send_static_file('index.html')
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve(path):
+    if path != "" and os.path.exists(app.static_folder + '/' + path):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
+
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_resume():
