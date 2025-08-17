@@ -1,96 +1,188 @@
-# Resume PDF Maker
+# Cover Letter Generator
 
-A web application that tailors resumes and generates cover letters based on job descriptions using AI.
+A modern web application that generates personalized cover letters using AI based on job descriptions and user information. Built with React frontend and Python backend, featuring Google Gemini AI integration.
 
 ## Features
 
-- Upload and analyze your resume
-- Input job descriptions and custom instructions
-- AI-powered recommendations for tailoring your resume
-- Generate customized cover letters
-- Download tailored resume and cover letter as PDFs
+- **AI-Powered Cover Letter Generation**: Uses Google Gemini AI to create personalized cover letters
+- **Personal Information Management**: Collect and store personal details for consistent formatting
+- **PDF Generation**: Automatically generate professional PDF cover letters
+- **Modern Web Interface**: Clean, responsive React frontend
+- **Docker Support**: Containerized deployment ready
+- **Cloud Deployment**: Configured for Google Cloud Run deployment
 
-## Project Structure
+## Project Architecture
 
-- `backend/`: Flask backend server
-- `frontend/`: React frontend application
-- `api_service/`: Gemini API integration service
-- `pdf_service/`: PDF generation service
-- `static/`: Static files and resume storage
+The application follows a microservices architecture with the following components:
+
+- **Frontend** (`frontend/`): React application with modern UI
+- **Backend** (`backend/`): Flask server handling API requests and serving the frontend
+- **AI Service** (`api_service/`): Google Gemini AI integration for cover letter generation
+- **PDF Service** (`pdf_service/`): PDF generation using ReportLab
+- **Static Assets** (`static/`): Resume storage and static files
 
 ## Prerequisites
 
-- Python 3.8+
-- Node.js and npm
+- Python 3.9+
+- Node.js 18+ and npm
 - Google Gemini API key
+- Virtual environment (recommended)
 
 ## Setup Instructions
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/Resume-PDF-Maker.git
-   cd Resume-PDF-Maker
-   ```
+### 1. Clone the Repository
+```bash
+git clone https://github.com/yourusername/Cover-Letter-Generator.git
+cd Cover-Letter-Generator
+```
 
-2. Set up environment:
-   ```
-   cp .env.example .env
-   ```
-   Edit the `.env` file and add your Gemini API key.
+### 2. Set Up Python Environment
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-3. Add your resume:
-   - Place your resume PDF file at `static/resume.pdf`
+# Install backend dependencies
+pip install -r backend/requirements.txt
+```
 
-4. Install backend dependencies:
-   ```
-   python -m pip install flask python-dotenv google-generativeai pypdf reportlab requests cors flask-cors
-   ```
+### 3. Set Up Frontend
+```bash
+cd frontend
+npm install
+cd ..
+```
 
-5. Install frontend dependencies:
-   ```
-   cd frontend
-   npm install
-   ```
+### 4. Configure Environment Variables
+Create a `.env` file in the root directory:
+```bash
+# Required: Your Google Gemini API key
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Optional: Frontend API URL (defaults to production URL)
+REACT_APP_API_URL=http://localhost:5000
+```
+
+### 5. Add Your Resume
+Place your resume PDF file at `static/resume.pdf` (the application will use this as a reference for generating cover letters).
 
 ## Running the Application
 
-1. Start all services at once:
-   ```
-   ./run.sh
-   ```
+### Option 1: Quick Start (Recommended)
+Use the provided script to start all services:
+```bash
+chmod +x run.sh
+./run.sh
+```
 
-   This will start:
-   - Frontend on http://localhost:3002
-   - Backend on http://localhost:5000
-   - API Service on http://localhost:5001
-   - PDF Service on http://localhost:5002
+This will start:
+- Frontend on http://localhost:3002
+- Backend on http://localhost:5000
 
-2. Or start services individually:
+### Option 2: Manual Start
 
-   ```
-   # Backend server
-   cd backend
-   python app.py
-   
-   # API service
-   cd api_service
-   python api.py
-   
-   # PDF service
-   cd pdf_service
-   python pdf_generator.py
-   
-   # Frontend (on port 3002)
-   cd frontend
-   PORT=3002 npm start
-   ```
+#### Start Backend
+```bash
+# Activate virtual environment
+source venv/bin/activate
 
-3. Open your browser and navigate to `http://localhost:3002`
+# Start Flask backend
+python backend/app.py
+```
+
+#### Start Frontend (in a new terminal)
+```bash
+cd frontend
+PORT=3002 npm start
+```
+
+### Option 3: Docker Deployment
+```bash
+# Build the Docker image
+docker build -t cover-letter-generator .
+
+# Run the container
+docker run -p 8080:8080 -e GEMINI_API_KEY=your_key_here cover-letter-generator
+```
 
 ## Usage
 
-1. Input the job description in the text area
-2. Add any custom instructions (optional)
-3. Click "Analyze & Generate"
-4. Review the AI-generated recommendations and content
-5. Download the tailored resume and cover letter PDFs
+1. **Open the Application**: Navigate to http://localhost:3002
+2. **Fill Personal Information**: Enter your name, email, phone, and other details
+3. **Add Job Details**: 
+   - Enter the company name
+   - Paste the job description
+   - Add any custom instructions (optional)
+4. **Generate Cover Letter**: Click "Analyze & Generate" to create your personalized cover letter
+5. **Download PDF**: Review the generated content and download the professional PDF
+
+## API Endpoints
+
+- `POST /api/analyze`: Generate cover letter content using AI
+- `POST /api/generate-pdf`: Create PDF from cover letter content
+- `GET /api/download/<filename>`: Download generated PDF files
+
+## Technology Stack
+
+### Backend
+- **Flask**: Web framework
+- **Google Generative AI**: AI-powered content generation
+- **ReportLab**: PDF generation
+- **PyPDF**: PDF processing
+- **Flask-CORS**: Cross-origin resource sharing
+
+### Frontend
+- **React 18**: Modern UI framework
+- **React Scripts**: Build and development tools
+
+### Infrastructure
+- **Docker**: Containerization
+- **Gunicorn**: Production WSGI server
+- **Google Cloud Run**: Cloud deployment platform
+
+## Development
+
+### Project Structure
+```
+Cover-Letter-Generator/
+├── backend/                 # Flask backend server
+│   ├── app.py              # Main Flask application
+│   └── requirements.txt    # Python dependencies
+├── frontend/               # React frontend
+│   ├── src/               # Source code
+│   ├── public/            # Public assets
+│   └── package.json       # Node.js dependencies
+├── api_service/           # AI service integration
+│   ├── ai_service.py      # Gemini AI integration
+│   └── system_instruction.txt  # AI prompt instructions
+├── pdf_service/           # PDF generation service
+│   └── pdf_generator.py   # PDF creation logic
+├── static/                # Static files and resume storage
+├── terraform/             # Infrastructure as code (if applicable)
+├── Dockerfile             # Docker configuration
+├── run.sh                 # Development startup script
+└── README.md              # This file
+```
+
+### Environment Variables
+- `GEMINI_API_KEY`: Required Google Gemini API key
+- `REACT_APP_API_URL`: Frontend API endpoint (defaults to production)
+
+## Deployment
+
+The application is configured for deployment on Google Cloud Run. The Dockerfile includes:
+- Multi-stage build for optimized production image
+- Gunicorn WSGI server for production
+- Static file serving for the React frontend
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
