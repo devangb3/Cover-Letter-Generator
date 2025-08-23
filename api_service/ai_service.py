@@ -118,8 +118,14 @@ def generate_cover_letter(job_description, company_name, custom_instructions, pe
             )
             logger.info("Received response from Gemini API")
             
-            cover_letter_text = response.text.strip()
-            logger.debug(f"Cover letter text length: {len(cover_letter_text)}")
+            if response.text:
+                cover_letter_text = response.text.strip()
+                logger.debug(f"Cover letter text length: {len(cover_letter_text)}")
+            else:
+                logger.error("No response text received from Gemini API")
+                return {
+                    "error": "No response text received from Gemini API"
+                }
             
             result = {
                 'coverLetter': cover_letter_text,
