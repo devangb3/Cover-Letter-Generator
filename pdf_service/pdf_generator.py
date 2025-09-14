@@ -2,6 +2,7 @@ import os
 import json
 import logging
 import traceback
+import re
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from reportlab.lib.pagesizes import letter
@@ -22,6 +23,24 @@ OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 logger.info(f"Output directory set to: {OUTPUT_DIR}")
 
+def sanitize_filename(filename):
+    """
+    Sanitize a string to be safe for use as a filename.
+    Removes or replaces characters that are not allowed in filenames.
+    """
+    # Remove or replace invalid characters (including periods and parentheses)
+    filename = re.sub(r'[<>:"/\\|?*().]', '_', filename)
+    # Remove extra spaces and replace with underscores
+    filename = re.sub(r'\s+', '_', filename.strip())
+    # Remove multiple consecutive underscores
+    filename = re.sub(r'_+', '_', filename)
+    # Remove leading/trailing underscores
+    filename = filename.strip('_')
+    # Limit length to avoid filesystem issues (accounting for "cover_letter_" prefix)
+    if len(filename) > 37:  # 50 - 13 (length of "cover_letter_") = 37
+        filename = filename[:37]
+    return filename
+
 def generate_cover_letter_pdf(data):
     """
     Service function to generate a cover letter PDF directly.
@@ -29,7 +48,24 @@ def generate_cover_letter_pdf(data):
     """
     try:
         logger.info("Generating cover letter PDF via service")
-        filename = f"cover_letter_{uuid.uuid4().hex}.pdf"
+        
+        # Try to use company name in filename, fallback to random ID
+        company_name = data.get('companyName', '').strip()
+        if company_name:
+            try:
+                sanitized_company = sanitize_filename(company_name)
+                if sanitized_company:  # Make sure sanitization didn't result in empty string
+                    filename = f"cover_letter_{sanitized_company}.pdf"
+                    logger.info(f"Using company name in filename: {filename}")
+                else:
+                    raise ValueError("Sanitized company name is empty")
+            except Exception as e:
+                logger.warning(f"Failed to use company name in filename: {e}. Falling back to random ID.")
+                filename = f"cover_letter_{uuid.uuid4().hex}.pdf"
+        else:
+            logger.info("No company name provided, using random ID in filename")
+            filename = f"cover_letter_{uuid.uuid4().hex}.pdf"
+        
         file_path = os.path.join(OUTPUT_DIR, filename)
         logger.debug(f"Cover letter PDF will be saved as: {file_path}")
         
