@@ -66,11 +66,13 @@ def process():
         company_name = data.get('companyName', '')
         custom_instructions = data.get('customInstructions', '')
         personal_info = data.get('personalInfo', {})
+        model = data.get('model', 'gemini-2.5-flash')
         
         logger.debug(f"Job description length: {len(job_description)}")
         logger.debug(f"Company name: {company_name}")
         logger.debug(f"Custom instructions length: {len(custom_instructions)}")
         logger.debug(f"Personal info: {personal_info}")
+        logger.debug(f"Selected model: {model}")
         
         personal_info_text = ""
         if personal_info:
@@ -116,7 +118,7 @@ def process():
         try:
             logger.debug("Sending request to Gemini API")
             response = client.models.generate_content(
-                model="gemini-2.5-pro",
+                model=model,
                 contents=[types.Part.from_bytes(
                     data=doc_data,
                     mime_type="application/pdf"

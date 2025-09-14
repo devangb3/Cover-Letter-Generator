@@ -45,14 +45,16 @@ def analyze_resume():
         company_name = data.get('companyName', '')
         custom_instructions = data.get('customInstructions', '')
         personal_info = data.get('personalInfo', {})
+        model = data.get('model', 'gemini-2.5-flash')
         
         logger.debug(f"Job description length: {len(job_description)}")
         logger.debug(f"Company name: {company_name}")
         logger.debug(f"Custom instructions length: {len(custom_instructions)}")
         logger.debug(f"Personal info: {personal_info}")
+        logger.debug(f"Selected model: {model}")
         
         logger.info("Processing request with AI service directly")
-        result = generate_cover_letter(job_description, company_name, custom_instructions, personal_info)
+        result = generate_cover_letter(job_description, company_name, custom_instructions, personal_info, model)
         
         if 'error' in result:
             logger.error(f"AI service error: {result['error']}")

@@ -7,6 +7,7 @@ function App() {
   const [jobDescription, setJobDescription] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [customInstructions, setCustomInstructions] = useState('');
+  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
@@ -88,7 +89,8 @@ function App() {
           jobDescription,
           companyName,
           customInstructions,
-          personalInfo
+          personalInfo,
+          model: selectedModel
         }),
       });
 
@@ -261,6 +263,21 @@ function App() {
                 onChange={(e) => setCompanyName(e.target.value)}
                 required
               />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="modelSelector">AI Model*</label>
+              <select
+                id="modelSelector"
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                required
+              >
+                <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash (Default)</option>
+                <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
+                <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+              </select>
             </div>
             
             <div className="form-group">

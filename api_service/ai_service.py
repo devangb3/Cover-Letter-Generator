@@ -48,7 +48,7 @@ def load_resume():
         logger.error(traceback.format_exc())
         return f"Error loading resume: {str(e)}"
 
-def generate_cover_letter(job_description, company_name, custom_instructions, personal_info):
+def generate_cover_letter(job_description, company_name, custom_instructions, personal_info, model='gemini-2.5-flash'):
     """
     Service function to generate a cover letter using Gemini API.
     This can be imported and used by other modules without Flask.
@@ -60,6 +60,7 @@ def generate_cover_letter(job_description, company_name, custom_instructions, pe
         logger.debug(f"Company name: {company_name}")
         logger.debug(f"Custom instructions length: {len(custom_instructions)}")
         logger.debug(f"Personal info: {personal_info}")
+        logger.debug(f"Selected model: {model}")
         
         personal_info_text = ""
         if personal_info:
@@ -105,7 +106,7 @@ def generate_cover_letter(job_description, company_name, custom_instructions, pe
         try:
             logger.debug("Sending request to Gemini API")
             response = client.models.generate_content(
-                model="gemini-2.5-pro",
+                model=model,
                 contents=[types.Part.from_bytes(
                     data=doc_data,
                     mime_type="application/pdf"
