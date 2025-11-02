@@ -5,7 +5,7 @@ if [ -f .env ]; then
 fi
 
 echo "Activating virtual environment..."
-source venv/bin/activate
+source .venv/bin/activate
 
 echo "Starting backend server..."
 python backend/app.py &

@@ -1,6 +1,10 @@
 import os
 import logging
 import traceback
+import json
+import re
+import io
+import time
 from google import genai
 from google.genai import types
 from google.genai.types import GenerateContentConfig
@@ -18,6 +22,52 @@ if not GEMINI_API_KEY:
     logger.warning("GEMINI_API_KEY not set in environment")
 else:
     logger.info("GEMINI_API_KEY found in environment")
+
+def load_projects():
+    """Service function to load projects from constants.js and format them for the prompt"""
+    try:
+        constants_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static', 'constants.js')
+        logger.info(f"Loading projects from: {constants_path}")
+        
+        if not os.path.exists(constants_path):
+            logger.error(f"Constants file not found at: {constants_path}")
+            return ""
+            
+        with open(constants_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+            
+        start_match = re.search(r'export\s+const\s+projects\s*=\s*\[', content, re.DOTALL)
+        if not start_match:
+            logger.warning("Could not find projects array in constants.js")
+            return ""
+        
+        start_pos = start_match.end() - 1  # Position of the opening [
+        bracket_count = 0
+        i = start_pos
+        
+        while i < len(content):
+            if content[i] == '[':
+                bracket_count += 1
+            elif content[i] == ']':
+                bracket_count -= 1
+                if bracket_count == 0:
+                    # Found the matching closing bracket
+                    array_content = content[start_pos + 1:i].strip()
+                    break
+            i += 1
+        else:
+            logger.warning("Could not find matching closing bracket for projects array")
+            return ""
+        
+        projects_text = "Projects I have worked on:\n\n" + array_content
+        
+        logger.info(f"Loaded projects, content length: {len(projects_text)}")
+        return projects_text
+            
+    except Exception as e:
+        logger.error(f"Error loading projects: {str(e)}")
+        logger.error(traceback.format_exc())
+        return ""
 
 def load_resume():
     """Service function to load resume text from PDF"""
@@ -73,6 +123,12 @@ def generate_cover_letter(job_description, company_name, custom_instructions, pe
         if resume_text.startswith("Error"):
             logger.error("Failed to load resume text")
             return {'error': resume_text}
+        
+        projects_text = load_projects()
+        if projects_text:
+            logger.info("Projects loaded successfully")
+        else:
+            logger.warning("No projects loaded")
             
         logger.info("Preparing prompt for Gemini API")
         system_instruction_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'system_instruction.txt')
@@ -88,6 +144,8 @@ def generate_cover_letter(job_description, company_name, custom_instructions, pe
         
         {personal_info_text}
 
+        {projects_text if projects_text else ""}
+
         Job Description:
         {job_description}
 
@@ -95,24 +153,51 @@ def generate_cover_letter(job_description, company_name, custom_instructions, pe
 
         {custom_instructions if custom_instructions else ""}
         """
-        logger.info("Downloading resume")
-        doc_url = "https://devang-borkar.netlify.app/Devang_Resume.pdf"
-        doc_data = httpx.get(doc_url).content
-        logger.info("Downloaded resume")
-
-        logger.info("Calling Gemini API")
+        
+        logger.info("Initializing Gemini client")
         client = genai.Client(api_key=GEMINI_API_KEY)
         logger.debug("Gemini model initialized")
+        
         try:
-            logger.debug("Sending request to Gemini API")
+            logger.info("Downloading resume PDF from URL")
+            doc_url = "https://devang-borkar.netlify.app/Devang_Resume.pdf"
+            doc_data = httpx.get(doc_url).content
+            logger.info(f"Downloaded resume, size: {len(doc_data)} bytes")
+            
+            # Use File API for better PDF processing (handles images, diagrams, charts, tables)
+            # Create BytesIO object for upload
+            doc_io = io.BytesIO(doc_data)
+            
+            logger.info("Uploading resume PDF using File API")
+            uploaded_file = client.files.upload(
+                file=doc_io,
+                config=dict(
+                    mime_type='application/pdf',
+                    display_name='Devang_Resume.pdf'
+                )
+            )
+            logger.info(f"File uploaded, name: {uploaded_file.name}")
+            
+            # Wait for file to be processed
+            logger.info("Waiting for file processing...")
+            get_file = client.files.get(name=uploaded_file.name)
+            while get_file.state == 'PROCESSING':
+                logger.debug(f"File state: {get_file.state}, waiting...")
+                time.sleep(2)  # Wait 2 seconds before checking again
+                get_file = client.files.get(name=uploaded_file.name)
+            
+            if get_file.state == 'FAILED':
+                logger.error("File processing failed")
+                return {
+                    "error": "Resume PDF processing failed. Please try again."
+                }
+            
+            logger.info(f"File processing complete, state: {get_file.state}")
+            
+            logger.debug("Sending request to Gemini API with uploaded file")
             response = client.models.generate_content(
                 model=model,
-                contents=[types.Part.from_bytes(
-                    data=doc_data,
-                    mime_type="application/pdf"
-                ),
-                prompt
-                ],
+                contents=[uploaded_file, prompt],
                 config=GenerateContentConfig(
                     system_instruction=system_instruction,
                 )

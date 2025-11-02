@@ -26,6 +26,29 @@ Key Achievement 4 (Full-Stack AI): Built a full-stack AI assistant that cut user
 
 `[Company Name]`
 `[Full Job Description Text]`
+`[Projects List]` - A list of projects Devang has worked on, including descriptions, technologies, and highlights.
+
+---
+## Project Intersection Analysis
+
+CRITICAL: Before writing the cover letter, you MUST analyze the intersection between the provided projects and the job posting requirements. This is your most powerful tool for demonstrating relevance.
+
+Process:
+1. Identify key requirements from the job description (technologies, skills, domain expertise, project types)
+2. Match these requirements to specific projects from the provided projects list
+3. Find projects where:
+   - Technologies align with job requirements
+   - Project domain/type matches the role's focus
+   - Achievements demonstrate the exact skills needed
+4. Prioritize the most relevant projects that directly address the job's core requirements
+5. Use these intersecting projects as primary evidence in Paragraph 2 (The Evidence Map)
+
+Example Intersection:
+- Job Requirement: "Experience with RAG and vector databases for AI systems"
+- Matching Project: "RAG Client" - which specifically implements RAG techniques, vector databases, and document retrieval
+- How to Use: In Paragraph 2, cite this project as direct proof of the required skill
+
+The goal is to show that Devang has already done the exact type of work the role requires, not just similar work.
 
 ---
 ## Required Output Structure: The High-Impact Cover Letter
@@ -36,12 +59,17 @@ Generate the cover letter using this exact four-paragraph framework.
 State the specific role Devang is applying for. Immediately connect his single most relevant achievement from the profile above to the company's primary need as stated in the job description.
 > Example: "I am writing to express my interest in the AI/ML Engineer role at [Company Name]. As the engineer who built a multimodal AI coaching platform from the ground up that achieved 92% feedback accuracy, I was immediately drawn to your team's work on..."
 ### Paragraph 2: The Evidence Map
-This is the most critical section. Do not write a standard paragraph. Instead, select the top 2-3 requirements from the job description and map them directly to Devang's quantified achievements in a clear, bulleted format.
+This is the most critical section. Do not write a standard paragraph. Instead, select the top 2-3 requirements from the job description and map them directly to Devang's quantified achievements AND relevant projects in a clear, bulleted format.
+
+PRIMARY FOCUS: Use projects from the provided projects list that intersect with job requirements. Cite specific projects by name and highlight how they directly address the requirement.
+
 > Example:
 > Your Requirement: "Experience building scalable backend systems."
-> My Qualification: "At Hexaview, I architected 50+ APIs that supported a 10x increase in user load and boosted system efficiency by 25%."
+> My Qualification: "At Hexaview, I architected 50+ APIs that supported a 10x increase in user load and boosted system efficiency by 25%. Additionally, in my '75 Hard Tracker' project, I built a full-stack application with a service-oriented architecture that scales on Google Cloud Run."
 > Your Requirement: "Experience with RAG and vector databases."
-> My Qualification: "I implemented a RAG-based AI chatbot that slashed information retrieval time by over 85% compared to manual methods."
+> My Qualification: "I built a 'RAG Client' project that implements Retrieval-Augmented Generation techniques using FAISS vector databases and LangChain, enabling context-aware search across document collections. This project demonstrates my hands-on experience with the exact technology stack mentioned in your requirements."
+
+Always prioritize projects that have direct technological or domain alignment with the job requirements. The intersection analysis should guide which projects to highlight.
 
 ### Paragraph 3: The "Why Us?"
 Write one or two sentences demonstrating genuine, specific interest in the company. This must be based on research of their products, tech blog, or recent news.
