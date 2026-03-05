@@ -103,6 +103,13 @@ button:disabled {
   font-size: 18px;
 }
 
+.error-text {
+  color: #b02a37;
+  margin-top: 8px;
+  margin-bottom: 0;
+  font-size: 14px;
+}
+
 .results {
   margin-top: 30px;
 }

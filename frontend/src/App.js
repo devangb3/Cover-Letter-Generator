@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './App.css';
 
 const API_URL = process.env.REACT_APP_API_URL || "https://cover-letter-generator-424176252593.us-central1.run.app";
@@ -7,7 +7,10 @@ function App() {
   const [jobDescription, setJobDescription] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [customInstructions, setCustomInstructions] = useState('');
-  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
+  const [selectedModel, setSelectedModel] = useState('');
+  const [modelOptions, setModelOptions] = useState([]);
+  const [modelLoadError, setModelLoadError] = useState(null);
+  const [modelsLoading, setModelsLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
@@ -33,6 +36,37 @@ function App() {
       [name]: value
     }));
   };
+
+  useEffect(() => {
+    const loadModels = async () => {
+      setModelsLoading(true);
+      setModelLoadError(null);
+
+      try {
+        const response = await fetch(`${API_URL}/api/models`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to load model list');
+        }
+
+        const models = Array.isArray(data.models) ? data.models : [];
+        if (!models.length) {
+          throw new Error('No models configured on backend');
+        }
+
+        setModelOptions(models);
+        setSelectedModel(data.defaultModel || models[0].slug);
+      } catch (err) {
+        console.error('Error loading models:', err);
+        setModelLoadError(err.message || 'Failed to load model list');
+      } finally {
+        setModelsLoading(false);
+      }
+    };
+
+    loadModels();
+  }, []);
 
   // Helper to split text that could be a string or an object
   const renderTextContent = (text) => {
@@ -61,6 +95,16 @@ function App() {
     // Validate company name
     if (!companyName) {
       setError("Please provide the company name");
+      return;
+    }
+
+    if (modelLoadError) {
+      setError("Unable to load model configuration. Please refresh and try again.");
+      return;
+    }
+
+    if (!selectedModel) {
+      setError("Please select an AI model");
       return;
     }
     
@@ -271,15 +315,18 @@ function App() {
                 id="modelSelector"
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
+                disabled={modelsLoading || !!modelLoadError}
                 required
               >
-                <option value="gemini-3-pro-preview">Gemini 3 Pro Preview</option>
-                <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
-                <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-                <option value="gemini-2.5-flash">Gemini 2.5 Flash (Default)</option>
-                <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
-                <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                {modelsLoading && <option value="">Loading models...</option>}
+                {!modelsLoading && modelLoadError && <option value="">Model load failed</option>}
+                {!modelsLoading && !modelLoadError && modelOptions.map((model) => (
+                  <option key={model.slug} value={model.slug}>
+                    {model.label}
+                  </option>
+                ))}
               </select>
+              {modelLoadError && <p className="error-text">{modelLoadError}</p>}
             </div>
             
             <div className="form-group">
@@ -305,7 +352,11 @@ function App() {
             </div>
           </div>
 
-          <button type="submit" disabled={loading} className="submit-button">
+          <button
+            type="submit"
+            disabled={loading || modelsLoading || !!modelLoadError || !selectedModel}
+            className="submit-button"
+          >
             {loading ? 'Generating...' : 'Generate Cover Letter'}
           </button>
         </form>
