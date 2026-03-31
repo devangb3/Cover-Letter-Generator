@@ -9,8 +9,15 @@ const INITIAL_PERSONAL_INFO = {
   phone: '',
   address: '',
   linkedin: '',
-  website: ''
+  website: '',
+  github: ''
 };
+
+/** UI-only field; never sent to the API. */
+function personalInfoForRequest(personalInfo) {
+  const { github: _uiOnly, ...rest } = personalInfo;
+  return rest;
+}
 
 function App() {
   const [jobDescription, setJobDescription] = useState('');
@@ -118,7 +125,7 @@ function App() {
     jobDescription,
     companyName,
     customInstructions,
-    personalInfo,
+    personalInfo: personalInfoForRequest(personalInfo),
     model: selectedModel
   });
 
@@ -157,7 +164,7 @@ function App() {
 
       const sanitizedData = {
         ...analyzeData,
-        personalInfo,
+        personalInfo: personalInfoForRequest(personalInfo),
         companyName,
         coverLetter: typeof analyzeData.coverLetter === 'string'
           ? analyzeData.coverLetter
@@ -321,6 +328,18 @@ function App() {
                   name="website"
                   value={personalInfo.website}
                   onChange={handlePersonalInfoChange}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="github">GitHub</label>
+                <input
+                  type="text"
+                  id="github"
+                  name="github"
+                  value={personalInfo.github}
+                  onChange={handlePersonalInfoChange}
+                  placeholder="https://github.com/devangb3"
                 />
               </div>
             </div>
