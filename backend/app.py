@@ -7,7 +7,7 @@ import traceback
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from api_service.ai_service import generate_cover_letter
+from api_service.ai_service import generate_cover_letter, generate_job_question_answers
 from api_service.model_config import get_default_model, get_models, is_allowed_model, load_model_config
 from pdf_service.pdf_generator import generate_cover_letter_pdf
 
@@ -87,6 +87,52 @@ def analyze_resume():
     
     except Exception as e:
         logger.error(f"Error in analyze_resume: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+
+
+@app.route('/api/answer-questions', methods=['POST'])
+def answer_questions():
+    try:
+        logger.info("Received question answering request")
+        data = request.get_json(silent=True) or {}
+        job_description = data.get('jobDescription', '')
+        company_name = data.get('companyName', '')
+        custom_instructions = data.get('customInstructions', '')
+        personal_info = data.get('personalInfo', {})
+        questions = data.get('questions', '')
+        model = data.get('model') or get_default_model()
+
+        logger.debug(f"Questions length: {len(str(questions))}")
+        logger.debug(f"Company name: {company_name}")
+        logger.debug(f"Selected model: {model}")
+
+        if not str(questions).strip():
+            return jsonify({'error': 'Please provide at least one application question'}), 400
+
+        if not is_allowed_model(model):
+            return jsonify({
+                'error': f"Invalid model '{model}'. Please select a model from /api/models."
+            }), 400
+
+        result = generate_job_question_answers(
+            job_description,
+            company_name,
+            custom_instructions,
+            personal_info,
+            questions,
+            model,
+        )
+
+        if 'error' in result:
+            logger.error(f"Question answering service error: {result['error']}")
+            status_code = 400 if 'Please provide at least one application question' in result['error'] else 500
+            return jsonify(result), status_code
+
+        logger.info("Successfully generated question answers")
+        return jsonify(result), 200
+    except Exception as e:
+        logger.error(f"Error in answer_questions: {str(e)}")
         logger.error(traceback.format_exc())
         return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
 

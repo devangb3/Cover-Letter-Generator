@@ -7,6 +7,7 @@ The app now uses **OpenRouter only** for LLM generation, with the allowed model 
 ## Features
 
 - OpenRouter-powered cover letter generation
+- Job application question answering using the same resume/projects context
 - YAML-driven model allowlist (`config/model.yaml`)
 - Backend model validation (rejects unknown slugs)
 - React frontend with model dropdown fetched from backend
@@ -111,6 +112,7 @@ docker run -p 8080:8080 -e OPENROUTER_API_KEY=your_key_here cover-letter-generat
 
 - `GET /api/models`: Returns configured model list and default model
 - `POST /api/analyze`: Generates cover letter text using selected model slug (or default)
+- `POST /api/answer-questions`: Generates answers for pasted application questions using the same candidate context
 - `POST /api/generate-pdf`: Builds PDF from generated text
 - `GET /api/download/<filename>`: Downloads generated PDF
 

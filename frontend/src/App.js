@@ -1,37 +1,43 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
 
-const API_URL = process.env.REACT_APP_API_URL || "https://cover-letter-generator-424176252593.us-central1.run.app";
+const API_URL = process.env.REACT_APP_API_URL || 'https://cover-letter-generator-424176252593.us-central1.run.app';
+
+const INITIAL_PERSONAL_INFO = {
+  name: '',
+  email: '',
+  phone: '',
+  address: '',
+  linkedin: '',
+  website: ''
+};
 
 function App() {
   const [jobDescription, setJobDescription] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [customInstructions, setCustomInstructions] = useState('');
+  const [jobQuestions, setJobQuestions] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
   const [modelOptions, setModelOptions] = useState([]);
   const [modelLoadError, setModelLoadError] = useState(null);
   const [modelsLoading, setModelsLoading] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
+  const [loadingAction, setLoadingAction] = useState(null);
+  const [coverLetterResult, setCoverLetterResult] = useState(null);
+  const [questionAnswers, setQuestionAnswers] = useState([]);
   const [error, setError] = useState(null);
-  const [file, setFile] = useState(null);
   const [apiError, setApiError] = useState(null);
   const [pdfError, setPdfError] = useState(null);
-  
-  // Personal information state
-  const [personalInfo, setPersonalInfo] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-    linkedin: '',
-    website: ''
-  });
+  const [questionError, setQuestionError] = useState(null);
+  const [file, setFile] = useState(null);
+  const [personalInfo, setPersonalInfo] = useState(INITIAL_PERSONAL_INFO);
 
-  // Handle personal info changes
+  const isGeneratingCoverLetter = loadingAction === 'cover-letter';
+  const isAnsweringQuestions = loadingAction === 'question-answers';
+  const isBusy = Boolean(loadingAction);
+
   const handlePersonalInfoChange = (e) => {
     const { name, value } = e.target;
-    setPersonalInfo(prev => ({
+    setPersonalInfo((prev) => ({
       ...prev,
       [name]: value
     }));
@@ -68,112 +74,98 @@ function App() {
     loadModels();
   }, []);
 
-  // Helper to split text that could be a string or an object
   const renderTextContent = (text) => {
     if (!text) return <p>No data available</p>;
-    
+
     if (typeof text === 'string') {
       return text.split('\n\n').map((paragraph, index) => (
         <p key={index}>{paragraph}</p>
       ));
-    } else if (typeof text === 'object') {
-      return <p>{JSON.stringify(text)}</p>;
-    } else {
-      return <p>{String(text)}</p>;
     }
+
+    if (typeof text === 'object') {
+      return <p>{JSON.stringify(text)}</p>;
+    }
+
+    return <p>{String(text)}</p>;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Validate personal information
+  const validateSharedFields = () => {
     if (!personalInfo.name || !personalInfo.email || !personalInfo.phone) {
-      setError("Please provide at least your name, email, and phone number");
-      return;
+      return 'Please provide at least your name, email, and phone number';
     }
-    
-    // Validate company name
-    if (!companyName) {
-      setError("Please provide the company name");
-      return;
+
+    if (!companyName.trim()) {
+      return 'Please provide the company name';
+    }
+
+    if (!jobDescription.trim()) {
+      return 'Please provide the job description';
     }
 
     if (modelLoadError) {
-      setError("Unable to load model configuration. Please refresh and try again.");
-      return;
+      return 'Unable to load model configuration. Please refresh and try again.';
     }
 
     if (!selectedModel) {
-      setError("Please select an AI model");
+      return 'Please select an AI model';
+    }
+
+    return null;
+  };
+
+  const buildRequestPayload = () => ({
+    jobDescription,
+    companyName,
+    customInstructions,
+    personalInfo,
+    model: selectedModel
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const validationError = validateSharedFields();
+    if (validationError) {
+      setError(validationError);
       return;
     }
-    
-    setLoading(true);
+
+    setLoadingAction('cover-letter');
     setError(null);
     setApiError(null);
     setPdfError(null);
-    setResult(null);
+    setQuestionError(null);
+    setCoverLetterResult(null);
     setFile(null);
 
     try {
-      console.log("Submitting form data...");
-      console.log("Job description length:", jobDescription.length);
-      console.log("Company name:", companyName);
-      console.log("Custom instructions length:", customInstructions.length);
-      console.log("Personal information:", personalInfo);
-
-      // Step 1: Call API to generate cover letter content
-      console.log("Calling analyze endpoint...");
       const analyzeResponse = await fetch(`${API_URL}/api/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          jobDescription,
-          companyName,
-          customInstructions,
-          personalInfo,
-          model: selectedModel
-        }),
+        body: JSON.stringify(buildRequestPayload()),
       });
 
-      console.log("Analyze response status:", analyzeResponse.status);
       const analyzeData = await analyzeResponse.json();
-      console.log("Analyze response data keys:", Object.keys(analyzeData));
 
-      if (!analyzeResponse.ok) {
+      if (!analyzeResponse.ok || analyzeData.error) {
         setApiError(analyzeData.error || 'Failed to generate cover letter');
-        if (analyzeData.details) {
-          console.error("API Error details:", analyzeData.details);
-        }
-        setLoading(false);
         return;
       }
 
-      // Check if there's an error field in the response
-      if (analyzeData.error) {
-        setApiError(analyzeData.error);
-        console.error("API Error:", analyzeData.error);
-        setLoading(false);
-        return;
-      }
-
-      // Ensure all required fields are present
       const sanitizedData = {
         ...analyzeData,
-        personalInfo, // Add personal info to the data
-        companyName,  // Add company name
-        coverLetter: typeof analyzeData.coverLetter === 'string' 
-          ? analyzeData.coverLetter 
+        personalInfo,
+        companyName,
+        coverLetter: typeof analyzeData.coverLetter === 'string'
+          ? analyzeData.coverLetter
           : JSON.stringify(analyzeData.coverLetter)
       };
 
-      setResult(sanitizedData);
-      console.log("Cover letter content generated successfully", sanitizedData);
+      setCoverLetterResult(sanitizedData);
 
-      // Step 2: Generate PDF
-      console.log("Calling generate-pdf endpoint...");
       const generateResponse = await fetch(`${API_URL}/api/generate-pdf`, {
         method: 'POST',
         headers: {
@@ -182,34 +174,72 @@ function App() {
         body: JSON.stringify(sanitizedData),
       });
 
-      console.log("Generate PDF response status:", generateResponse.status);
       const generateData = await generateResponse.json();
-      console.log("Generate PDF response data:", generateData);
 
-      if (!generateResponse.ok) {
+      if (!generateResponse.ok || generateData.error) {
         setPdfError(generateData.error || 'Failed to generate PDF');
-        if (generateData.details) {
-          console.error("PDF Error details:", generateData.details);
-        }
-        setLoading(false);
-        return;
-      }
-
-      // Check if there's an error field in the response
-      if (generateData.error) {
-        setPdfError(generateData.error);
-        console.error("PDF Error:", generateData.error);
-        setLoading(false);
         return;
       }
 
       setFile(generateData.coverLetterFile);
-      console.log("PDF file generated successfully:", generateData);
     } catch (err) {
-      console.error("Error during process:", err);
+      console.error('Error during cover letter generation:', err);
       setError(err.message || 'An unexpected error occurred');
     } finally {
-      setLoading(false);
+      setLoadingAction(null);
+    }
+  };
+
+  const handleAnswerQuestions = async () => {
+    const validationError = validateSharedFields();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    if (!jobQuestions.trim()) {
+      setError('Please provide at least one application question');
+      return;
+    }
+
+    setLoadingAction('question-answers');
+    setError(null);
+    setApiError(null);
+    setPdfError(null);
+    setQuestionError(null);
+    setQuestionAnswers([]);
+
+    try {
+      const response = await fetch(`${API_URL}/api/answer-questions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...buildRequestPayload(),
+          questions: jobQuestions
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        setQuestionError(data.error || 'Failed to answer application questions');
+        return;
+      }
+
+      const answers = Array.isArray(data.answers) ? data.answers : [];
+      if (!answers.length) {
+        setQuestionError('No answers were returned.');
+        return;
+      }
+
+      setQuestionAnswers(answers);
+    } catch (err) {
+      console.error('Error answering application questions:', err);
+      setQuestionError(err.message || 'An unexpected error occurred');
+    } finally {
+      setLoadingAction(null);
     }
   };
 
@@ -217,7 +247,7 @@ function App() {
     <div className="App">
       <header className="App-header">
         <h1>Cover Letter Generator</h1>
-        <p>Generate a personalized cover letter based on a job description</p>
+        <p>Generate a personalized cover letter and answer job application questions using the same candidate context.</p>
       </header>
 
       <main>
@@ -236,7 +266,7 @@ function App() {
                   required
                 />
               </div>
-              
+
               <div className="form-group">
                 <label htmlFor="email">Email Address*</label>
                 <input
@@ -248,7 +278,7 @@ function App() {
                   required
                 />
               </div>
-              
+
               <div className="form-group">
                 <label htmlFor="phone">Phone Number*</label>
                 <input
@@ -260,7 +290,7 @@ function App() {
                   required
                 />
               </div>
-              
+
               <div className="form-group">
                 <label htmlFor="address">Address</label>
                 <input
@@ -271,7 +301,7 @@ function App() {
                   onChange={handlePersonalInfoChange}
                 />
               </div>
-              
+
               <div className="form-group">
                 <label htmlFor="linkedin">LinkedIn Profile</label>
                 <input
@@ -282,7 +312,7 @@ function App() {
                   onChange={handlePersonalInfoChange}
                 />
               </div>
-              
+
               <div className="form-group">
                 <label htmlFor="website">Personal Website</label>
                 <input
@@ -308,7 +338,7 @@ function App() {
                 required
               />
             </div>
-            
+
             <div className="form-group">
               <label htmlFor="modelSelector">AI Model*</label>
               <select
@@ -328,7 +358,7 @@ function App() {
               </select>
               {modelLoadError && <p className="error-text">{modelLoadError}</p>}
             </div>
-            
+
             <div className="form-group">
               <label htmlFor="jobDescription">Job Description*</label>
               <textarea
@@ -347,18 +377,46 @@ function App() {
                 value={customInstructions}
                 onChange={(e) => setCustomInstructions(e.target.value)}
                 rows="5"
-                placeholder="Any specific focuses, career goals, or additional information you want to highlight in your cover letter"
+                placeholder="Any specific focuses, career goals, or additional information you want highlighted."
               />
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading || modelsLoading || !!modelLoadError || !selectedModel}
-            className="submit-button"
-          >
-            {loading ? 'Generating...' : 'Generate Cover Letter'}
-          </button>
+          <div className="form-section">
+            <h2>Application Questions</h2>
+            <p className="section-intro">
+              Paste the job application or screening questions here. Use one question per line, or separate longer questions with a blank line.
+            </p>
+            <div className="form-group">
+              <label htmlFor="jobQuestions">Questions</label>
+              <textarea
+                id="jobQuestions"
+                value={jobQuestions}
+                onChange={(e) => setJobQuestions(e.target.value)}
+                rows="8"
+                placeholder={'Why do you want to work at this company?\nDescribe your experience with Python and backend APIs.\nWhat makes you a fit for this role?'}
+              />
+            </div>
+          </div>
+
+          <div className="action-row">
+            <button
+              type="submit"
+              disabled={isBusy || modelsLoading || !!modelLoadError || !selectedModel}
+              className="submit-button"
+            >
+              {isGeneratingCoverLetter ? 'Generating Cover Letter...' : 'Generate Cover Letter'}
+            </button>
+
+            <button
+              type="button"
+              disabled={isBusy || modelsLoading || !!modelLoadError || !selectedModel}
+              className="secondary-button"
+              onClick={handleAnswerQuestions}
+            >
+              {isAnsweringQuestions ? 'Answering Questions...' : 'Answer Application Questions'}
+            </button>
+          </div>
         </form>
 
         {error && (
@@ -382,13 +440,20 @@ function App() {
           </div>
         )}
 
-        {result && (
+        {questionError && (
+          <div className="error-message">
+            <h3>Question Answering Error</h3>
+            <p>{questionError}</p>
+          </div>
+        )}
+
+        {coverLetterResult && (
           <div className="results">
             <h2>Cover Letter Preview</h2>
-            
+
             <div className="result-section">
               <div className="cover-letter">
-                {renderTextContent(result.coverLetter)}
+                {renderTextContent(coverLetterResult.coverLetter)}
               </div>
             </div>
           </div>
@@ -398,13 +463,30 @@ function App() {
           <div className="download-section">
             <h2>Download Cover Letter</h2>
             <div className="download-buttons">
-              <a 
+              <a
                 href={`${API_URL}/api/download/${file}`}
                 className="download-button"
                 download
               >
                 Download Cover Letter PDF
               </a>
+            </div>
+          </div>
+        )}
+
+        {questionAnswers.length > 0 && (
+          <div className="results">
+            <h2>Application Question Answers</h2>
+            <div className="qa-list">
+              {questionAnswers.map((item, index) => (
+                <div className="qa-card" key={`${item.question}-${index}`}>
+                  <h3>Question {index + 1}</h3>
+                  <p className="qa-question">{item.question}</p>
+                  <div className="qa-answer">
+                    {renderTextContent(item.answer)}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
