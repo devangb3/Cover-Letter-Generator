@@ -6,9 +6,7 @@ openrouter:
       slug: openai/gpt-5.4-nano
     - label: Gemini 3.0 Flash
       slug: google/gemini-3-flash-preview
-    - label: Kimi K2.5
-      slug: moonshotai/kimi-k2.5
-    - label: GLM 5
-      slug: z-ai/glm-5
     - label: Trinity Large Free
       slug: arcee-ai/trinity-large-preview:free
+    - label: DeepSeek v4 Pro
+      slug: deepseek/deepseek-v4-pro
