@@ -19,6 +19,83 @@ function personalInfoForRequest(personalInfo) {
   return rest;
 }
 
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.select();
+  const ok = document.execCommand('copy');
+  document.body.removeChild(textarea);
+  if (!ok) {
+    throw new Error('Unable to copy to clipboard');
+  }
+}
+
+function CopyUrlWidgetButton({ label, textToCopy }) {
+  const trimmed = typeof textToCopy === 'string' ? textToCopy.trim() : '';
+  const handleCopy = async () => {
+    if (!trimmed) {
+      return;
+    }
+    try {
+      await copyTextToClipboard(trimmed);
+    } catch (err) {
+      console.error('Copy to clipboard failed:', err);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      className="copy-url-widget"
+      onClick={handleCopy}
+      disabled={!trimmed}
+      title="Copy URL"
+      aria-label={`Copy ${label}`}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+      </svg>
+    </button>
+  );
+}
+
+function PersonalUrlFieldRow({ id, name, label, value, onChange, placeholder }) {
+  return (
+    <div className="form-group">
+      <div className="label-row-with-copy">
+        <label htmlFor={id}>{label}</label>
+        <CopyUrlWidgetButton label={label} textToCopy={value} />
+      </div>
+      <input
+        type="text"
+        id={id}
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+      />
+    </div>
+  );
+}
+
 function App() {
   const [jobDescription, setJobDescription] = useState('');
   const [companyName, setCompanyName] = useState('');
@@ -309,39 +386,30 @@ function App() {
                 />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="linkedin">LinkedIn Profile</label>
-                <input
-                  type="text"
-                  id="linkedin"
-                  name="linkedin"
-                  value={personalInfo.linkedin}
-                  onChange={handlePersonalInfoChange}
-                />
-              </div>
+              <PersonalUrlFieldRow
+                id="linkedin"
+                name="linkedin"
+                label="LinkedIn URL"
+                value={personalInfo.linkedin}
+                onChange={handlePersonalInfoChange}
+              />
 
-              <div className="form-group">
-                <label htmlFor="website">Personal Website</label>
-                <input
-                  type="text"
-                  id="website"
-                  name="website"
-                  value={personalInfo.website}
-                  onChange={handlePersonalInfoChange}
-                />
-              </div>
+              <PersonalUrlFieldRow
+                id="website"
+                name="website"
+                label="Portfolio URL"
+                value={personalInfo.website}
+                onChange={handlePersonalInfoChange}
+              />
 
-              <div className="form-group">
-                <label htmlFor="github">GitHub</label>
-                <input
-                  type="text"
-                  id="github"
-                  name="github"
-                  value={personalInfo.github}
-                  onChange={handlePersonalInfoChange}
-                  placeholder="https://github.com/devangb3"
-                />
-              </div>
+              <PersonalUrlFieldRow
+                id="github"
+                name="github"
+                label="GitHub URL"
+                value={personalInfo.github}
+                onChange={handlePersonalInfoChange}
+                placeholder="https://github.com/devangb3"
+              />
             </div>
           </div>
 

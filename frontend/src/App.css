@@ -1,8 +1,32 @@
+:root {
+  --bg-page: #0d1117;
+  --bg-surface: #161b22;
+  --bg-input: #0d1117;
+  --border: #30363d;
+  --border-muted: #21262d;
+  --text: #e6edf3;
+  --text-muted: #8b949e;
+  --text-heading: #f0f6fc;
+  --accent: #388bfd;
+  --accent-hover: #58a6ff;
+  --secondary-bg: #21262d;
+  --secondary-hover: #30363d;
+  --success: #3fb950;
+  --success-hover: #56d364;
+  --error-bg: rgba(248, 81, 73, 0.12);
+  --error-border: rgba(248, 81, 73, 0.45);
+  --error-text: #ff8182;
+  --shadow: rgba(0, 0, 0, 0.45);
+  --btn-disabled-bg: #21262d;
+  --btn-disabled-text: #6e7681;
+}
+
 .App {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
   font-family: Arial, sans-serif;
+  color: var(--text);
 }
 
 .App-header {
@@ -11,22 +35,23 @@
 }
 
 .App-header h1 {
-  color: #2c3e50;
+  color: var(--text-heading);
   margin-bottom: 10px;
 }
 
 .App-header p {
-  color: #7f8c8d;
+  color: var(--text-muted);
   max-width: 760px;
   margin: 0 auto;
   line-height: 1.6;
 }
 
 form {
-  background-color: #f9f9f9;
+  background-color: var(--bg-surface);
   padding: 20px;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-muted);
+  box-shadow: 0 4px 14px var(--shadow);
   margin-bottom: 30px;
 }
 
@@ -35,17 +60,17 @@ form {
 }
 
 .form-section h2 {
-  color: #2c3e50;
+  color: var(--text-heading);
   font-size: 1.5rem;
   margin-bottom: 20px;
   padding-bottom: 10px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--border);
 }
 
 .section-intro {
   margin-top: -6px;
   margin-bottom: 20px;
-  color: #5f6c7b;
+  color: var(--text-muted);
   line-height: 1.6;
 }
 
@@ -63,17 +88,73 @@ label {
   display: block;
   font-weight: bold;
   margin-bottom: 8px;
-  color: #2c3e50;
+  color: var(--text-heading);
 }
 
-input, textarea, select {
+input,
+textarea,
+select {
   width: 100%;
   padding: 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   border-radius: 4px;
   font-size: 16px;
   font-family: inherit;
   box-sizing: border-box;
+  background-color: var(--bg-input);
+  color: var(--text);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(56, 139, 253, 0.25);
+}
+
+.label-row-with-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.label-row-with-copy label {
+  margin-bottom: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.copy-url-widget {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--text);
+  background: var(--secondary-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.copy-url-widget svg {
+  width: 16px;
+  height: 16px;
+}
+
+.copy-url-widget:hover:not(:disabled) {
+  background: var(--secondary-hover);
 }
 
 textarea {
@@ -88,40 +169,59 @@ textarea {
 
 .submit-button,
 .secondary-button {
-  color: white;
+  color: #fff;
   border: none;
   padding: 14px 28px;
   border-radius: 4px;
   font-size: 16px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: background-color 0.2s, opacity 0.2s;
   flex: 1 1 280px;
 }
 
 .submit-button {
-  background-color: #3498db;
+  background-color: var(--accent);
 }
 
-.submit-button:hover {
-  background-color: #2980b9;
+.submit-button:hover:not(:disabled) {
+  background-color: var(--accent-hover);
 }
 
 .secondary-button {
-  background-color: #34495e;
+  background-color: var(--secondary-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
 }
 
-.secondary-button:hover {
-  background-color: #243341;
+.secondary-button:hover:not(:disabled) {
+  background-color: var(--secondary-hover);
+}
+
+.submit-button:disabled,
+.secondary-button:disabled {
+  background-color: var(--btn-disabled-bg);
+  border-color: var(--border-muted);
+  color: var(--btn-disabled-text);
+  opacity: 0.85;
+  cursor: not-allowed;
 }
 
 button:disabled {
-  background-color: #7f8c8d;
+  cursor: not-allowed;
+}
+
+button.copy-url-widget:disabled {
+  background-color: var(--secondary-bg);
+  color: var(--text-muted);
+  border-color: var(--border-muted);
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
 .error-message {
-  background-color: #f8d7da;
-  color: #721c24;
+  background-color: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
   padding: 15px;
   border-radius: 4px;
   margin-bottom: 20px;
@@ -131,10 +231,16 @@ button:disabled {
   margin-top: 0;
   margin-bottom: 10px;
   font-size: 18px;
+  color: var(--error-text);
+}
+
+.error-message p {
+  margin: 0;
+  color: #fecaca;
 }
 
 .error-text {
-  color: #b02a37;
+  color: var(--error-text);
   margin-top: 8px;
   margin-bottom: 0;
   font-size: 14px;
@@ -144,18 +250,25 @@ button:disabled {
   margin-top: 30px;
 }
 
+.results > h2,
+.download-section h2 {
+  color: var(--text-heading);
+}
+
 .result-section,
 .qa-card {
-  background-color: #f9f9f9;
+  background-color: var(--bg-surface);
   padding: 20px;
   margin-bottom: 20px;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-muted);
+  box-shadow: 0 4px 14px var(--shadow);
 }
 
 .cover-letter p,
 .qa-answer p {
   line-height: 1.6;
+  color: var(--text);
 }
 
 .qa-list {
@@ -164,20 +277,20 @@ button:disabled {
 }
 
 .qa-card h3 {
-  color: #2c3e50;
+  color: var(--text-heading);
   margin-top: 0;
   margin-bottom: 10px;
 }
 
 .qa-question {
   font-weight: bold;
-  color: #1f2d3d;
+  color: #c9d1d9;
   margin-top: 0;
   margin-bottom: 12px;
 }
 
 .qa-answer {
-  color: #334155;
+  color: var(--text-muted);
 }
 
 .download-section {
@@ -193,17 +306,18 @@ button:disabled {
 }
 
 .download-button {
-  background-color: #27ae60;
-  color: white;
+  background-color: var(--success);
+  color: #0d1117;
+  font-weight: 700;
   text-decoration: none;
   padding: 12px 24px;
   border-radius: 4px;
   display: inline-block;
-  transition: background-color 0.3s;
+  transition: background-color 0.2s;
 }
 
 .download-button:hover {
-  background-color: #219653;
+  background-color: var(--success-hover);
 }
 
 @media (max-width: 768px) {

@@ -159,7 +159,7 @@ def build_application_context(job_description, company_name, custom_instructions
         sections.append(f"Company Name: {company_name.strip()}")
 
     if custom_instructions:
-        sections.append(f"Additional Instructions:\n{custom_instructions.strip()}")
+        sections.append(f"Additional Important Instruction you need to follow:\n{custom_instructions.strip()}")
 
     return "\n\n".join(section for section in sections if section)
 
