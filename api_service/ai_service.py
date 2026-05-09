@@ -31,6 +31,24 @@ if not OPENROUTER_API_KEY:
 
 API_SERVICE_DIR = os.path.dirname(os.path.abspath(__file__))
 OPTIONAL_PERSONAL_INFO_FIELDS = {"address", "linkedin", "website"}
+WEB_SEARCH_TOOL = {
+    "type": "openrouter:web_search",
+    "parameters": {
+        "max_results": 3,
+        "max_total_results": 3,
+        "search_context_size": "low",
+    },
+}
+COMPANY_RESEARCH_QUESTION_PATTERN = re.compile(
+    r"\b("
+    r"why\s+(?:do\s+you\s+)?(?:want|interested)|"
+    r"why\s+(?:this\s+)?company|"
+    r"why\s+(?:are\s+you\s+)?(?:interested\s+in\s+)?(?:us|our)|"
+    r"what\s+do\s+you\s+know\s+about|"
+    r"company|product|mission|team|culture"
+    r")\b",
+    re.IGNORECASE,
+)
 
 
 def load_projects():
@@ -70,7 +88,13 @@ def load_projects():
             logger.warning("Could not find matching closing bracket for projects array")
             return ""
 
-        projects_text = "Projects I have worked on:\n\n" + array_content
+        projects_text = "\n\n".join(
+            [
+                "Full project evidence bank:",
+                "Use every project below as candidate evidence. Internally rank the projects against the job description or question, then cite the strongest matching projects in the final answer.",
+                array_content,
+            ]
+        )
         logger.info(f"Loaded projects, content length: {len(projects_text)}")
         return projects_text
     except Exception as exc:
@@ -170,7 +194,13 @@ def build_resume_data_url():
     return f"data:application/pdf;base64,{resume_data_b64}"
 
 
-def call_openrouter(system_instruction, prompt, selected_model):
+def should_enable_question_web_search(questions):
+    """Return True when application questions ask for company-specific context."""
+    return True
+    # return any(COMPANY_RESEARCH_QUESTION_PATTERN.search(question) for question in questions)
+
+
+def call_openrouter(system_instruction, prompt, selected_model, enable_web_search=False):
     if not OPENROUTER_API_KEY:
         raise RuntimeError("OPENROUTER_API_KEY not configured")
 
@@ -196,6 +226,8 @@ def call_openrouter(system_instruction, prompt, selected_model):
             },
         ],
     }
+    if enable_web_search:
+        payload["tools"] = [WEB_SEARCH_TOOL]
 
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
@@ -266,6 +298,14 @@ def parse_json_response(response_text):
         return json.loads(match.group(0))
 
 
+EM_DASH = "\u2014"
+
+
+def strip_em_dashes(text: str) -> str:
+    """Remove em dashes from model output (post-processing validation)."""
+    return text.replace(EM_DASH, "")
+
+
 def normalize_question_answers(response_payload, original_questions):
     answers = response_payload.get("answers")
     if not isinstance(answers, list):
@@ -284,7 +324,7 @@ def normalize_question_answers(response_payload, original_questions):
         normalized_answers.append(
             {
                 "question": str(answer_item.get("question") or question).strip(),
-                "answer": answer_text.strip(),
+                "answer": strip_em_dashes(answer_text.strip()),
             }
         )
 
@@ -319,7 +359,12 @@ def generate_cover_letter(job_description, company_name, custom_instructions, pe
             ]
         )
 
-        cover_letter_text = call_openrouter(system_instruction, prompt, selected_model)
+        cover_letter_text = call_openrouter(
+            system_instruction,
+            prompt,
+            selected_model,
+            enable_web_search=True,
+        )
         return {
             "coverLetter": cover_letter_text,
             "personalInfo": personal_info,
@@ -372,7 +417,12 @@ def generate_job_question_answers(
             ]
         )
 
-        response_text = call_openrouter(system_instruction, prompt, selected_model)
+        response_text = call_openrouter(
+            system_instruction,
+            prompt,
+            selected_model,
+            enable_web_search=should_enable_question_web_search(parsed_questions),
+        )
         response_payload = parse_json_response(response_text)
         normalized_answers = normalize_question_answers(response_payload, parsed_questions)
 
