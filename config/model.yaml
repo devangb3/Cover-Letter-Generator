@@ -1,6 +1,6 @@
 openrouter:
   base_url: https://openrouter.ai/api/v1
-  default_model: openai/gpt-5.4-nano
+  default_model: openai/gpt-chat-latest
   models:
     - label: GPT-Chat
       slug: openai/gpt-chat-latest
