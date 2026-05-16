@@ -34,6 +34,7 @@ Evidence standards:
 
 Output format:
 - Return only the main body of the cover letter.
+- Output is pasted directly into a finished application document. Write as finalized prose only: no meta-commentary, no assistant-style sign-offs, and no invitations to elaborate (for example never write lines like "If you want I can explain more about the projects above," "feel free to ask," "let me know if you would like detail on," or similar).
 - Do not include header, address, date, greeting, salutation, signature, citations, raw URLs, markdown headings, or bullet characters.
 - Write 3-4 short paragraphs.
 - Paragraph 1: name the role if it is clear and connect the role's main need to Devang's strongest matching evidence.

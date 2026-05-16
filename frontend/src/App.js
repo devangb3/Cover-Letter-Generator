@@ -107,16 +107,17 @@ function App() {
   const [modelsLoading, setModelsLoading] = useState(true);
   const [loadingAction, setLoadingAction] = useState(null);
   const [coverLetterResult, setCoverLetterResult] = useState(null);
+  const [editableCoverLetter, setEditableCoverLetter] = useState('');
   const [questionAnswers, setQuestionAnswers] = useState([]);
   const [error, setError] = useState(null);
   const [apiError, setApiError] = useState(null);
   const [pdfError, setPdfError] = useState(null);
   const [questionError, setQuestionError] = useState(null);
-  const [file, setFile] = useState(null);
   const [personalInfo, setPersonalInfo] = useState(INITIAL_PERSONAL_INFO);
 
   const isGeneratingCoverLetter = loadingAction === 'cover-letter';
   const isAnsweringQuestions = loadingAction === 'question-answers';
+  const isDownloadingPdf = loadingAction === 'pdf-download';
   const isBusy = Boolean(loadingAction);
 
   const handlePersonalInfoChange = (e) => {
@@ -221,7 +222,7 @@ function App() {
     setPdfError(null);
     setQuestionError(null);
     setCoverLetterResult(null);
-    setFile(null);
+    setEditableCoverLetter('');
 
     try {
       const analyzeResponse = await fetch(`${API_URL}/api/analyze`, {
@@ -249,13 +250,43 @@ function App() {
       };
 
       setCoverLetterResult(sanitizedData);
+      setEditableCoverLetter(sanitizedData.coverLetter);
+    } catch (err) {
+      console.error('Error during cover letter generation:', err);
+      setError(err.message || 'An unexpected error occurred');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleDownloadCoverLetter = async () => {
+    if (!coverLetterResult) {
+      return;
+    }
+
+    if (!editableCoverLetter.trim()) {
+      setPdfError('Please add cover letter text before downloading.');
+      return;
+    }
+
+    setLoadingAction('pdf-download');
+    setError(null);
+    setPdfError(null);
+
+    try {
+      const pdfPayload = {
+        ...coverLetterResult,
+        personalInfo: personalInfoForRequest(personalInfo),
+        companyName,
+        coverLetter: editableCoverLetter
+      };
 
       const generateResponse = await fetch(`${API_URL}/api/generate-pdf`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(sanitizedData),
+        body: JSON.stringify(pdfPayload),
       });
 
       const generateData = await generateResponse.json();
@@ -265,10 +296,21 @@ function App() {
         return;
       }
 
-      setFile(generateData.coverLetterFile);
+      const generatedFile = generateData.coverLetterFile;
+      if (!generatedFile) {
+        setPdfError('PDF generation completed without a downloadable file.');
+        return;
+      }
+
+      const downloadLink = document.createElement('a');
+      downloadLink.href = `${API_URL}/api/download/${generatedFile}`;
+      downloadLink.download = generatedFile;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
     } catch (err) {
-      console.error('Error during cover letter generation:', err);
-      setError(err.message || 'An unexpected error occurred');
+      console.error('Error during PDF download:', err);
+      setPdfError(err.message || 'An unexpected error occurred while preparing the PDF');
     } finally {
       setLoadingAction(null);
     }
@@ -536,27 +578,35 @@ function App() {
 
         {coverLetterResult && (
           <div className="results">
-            <h2>Cover Letter Preview</h2>
+            <h2>Generated Cover Letter</h2>
 
             <div className="result-section">
-              <div className="cover-letter">
-                {renderTextContent(coverLetterResult.coverLetter)}
+              <div className="form-group">
+                <label htmlFor="coverLetterEditor">Cover Letter Text</label>
+                <textarea
+                  id="coverLetterEditor"
+                  className="cover-letter-editor"
+                  value={editableCoverLetter}
+                  onChange={(e) => setEditableCoverLetter(e.target.value)}
+                  rows="18"
+                />
               </div>
             </div>
           </div>
         )}
 
-        {file && (
+        {coverLetterResult && (
           <div className="download-section">
             <h2>Download Cover Letter</h2>
             <div className="download-buttons">
-              <a
-                href={`${API_URL}/api/download/${file}`}
+              <button
+                type="button"
                 className="download-button"
-                download
+                onClick={handleDownloadCoverLetter}
+                disabled={isBusy || !editableCoverLetter.trim()}
               >
-                Download Cover Letter PDF
-              </a>
+                {isDownloadingPdf ? 'Preparing PDF...' : 'Download Cover Letter PDF'}
+              </button>
             </div>
           </div>
         )}

@@ -271,6 +271,12 @@ button.copy-url-widget:disabled {
   color: var(--text);
 }
 
+.cover-letter-editor {
+  min-height: 420px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
 .qa-list {
   display: grid;
   gap: 20px;
@@ -313,11 +319,20 @@ button.copy-url-widget:disabled {
   padding: 12px 24px;
   border-radius: 4px;
   display: inline-block;
+  border: none;
+  cursor: pointer;
   transition: background-color 0.2s;
+  font: inherit;
 }
 
-.download-button:hover {
+.download-button:hover:not(:disabled) {
   background-color: var(--success-hover);
+}
+
+.download-button:disabled {
+  background-color: var(--btn-disabled-bg);
+  color: var(--btn-disabled-text);
+  cursor: not-allowed;
 }
 
 @media (max-width: 768px) {
