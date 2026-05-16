@@ -7,9 +7,10 @@ import traceback
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from api_service.ai_service import generate_cover_letter, generate_job_question_answers
+from api_service.ai_service import generate_cover_letter, generate_job_question_answers, generate_resume_bullets
 from api_service.model_config import get_default_model, get_models, is_allowed_model, load_model_config
 from pdf_service.pdf_generator import generate_cover_letter_pdf
+from pdf_service.resume_generator import render_resume_tex, compile_tex_to_pdf
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -133,6 +134,41 @@ def answer_questions():
         return jsonify(result), 200
     except Exception as e:
         logger.error(f"Error in answer_questions: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+
+
+
+@app.route('/api/generate-resume', methods=['POST'])
+def generate_resume():
+    try:
+        data = request.get_json(silent=True) or {}
+        job_description = data.get('jobDescription', '')
+        company_name = data.get('companyName', '')
+        custom_instructions = data.get('customInstructions', '')
+        personal_info = data.get('personalInfo', {})
+        model = data.get('model') or get_default_model()
+
+        if not is_allowed_model(model):
+            return jsonify({'error': f"Invalid model '{model}'. Please select a model from /api/models."}), 400
+
+        template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ai_eng.tex')
+        retry_history = []
+        for attempt in range(1, 4):
+            bullet_payload = generate_resume_bullets(job_description, company_name, custom_instructions, personal_info, model, retry_history=retry_history)
+            if 'error' in bullet_payload:
+                return jsonify(bullet_payload), 500
+
+            tex_content = render_resume_tex(template_path, bullet_payload)
+            compile_result = compile_tex_to_pdf(tex_content)
+            if compile_result.get('ok'):
+                return jsonify({'resumeFile': compile_result.get('resumeFile')}), 200
+
+            retry_history.append(f"Attempt {attempt} LaTeX compiler error: {compile_result.get('compilerError', '')}")
+
+        return jsonify({'error': 'Failed to generate a compilable resume after retries.', 'compilerError': retry_history[-1] if retry_history else ''}), 500
+    except Exception as e:
+        logger.error(f"Error in generate_resume: {str(e)}")
         logger.error(traceback.format_exc())
         return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
 

@@ -263,6 +263,49 @@ def call_openrouter(system_instruction, prompt, selected_model, enable_web_searc
     return response_text
 
 
+def call_openrouter_json(
+    system_instruction,
+    prompt,
+    selected_model,
+    max_tokens=800,
+    enable_web_search=False,
+):
+    if not OPENROUTER_API_KEY:
+        raise RuntimeError("OPENROUTER_API_KEY not configured")
+
+    payload = {
+        "model": selected_model,
+        "messages": [
+            {"role": "system", "content": system_instruction},
+            {"role": "user", "content": prompt},
+        ],
+        "max_tokens": max_tokens,
+        "temperature": 0.2,
+    }
+    if enable_web_search:
+        payload["tools"] = [WEB_SEARCH_TOOL]
+
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    endpoint = f"{get_base_url().rstrip('/')}/chat/completions"
+    response = httpx.post(endpoint, headers=headers, json=payload, timeout=120.0)
+    if response.status_code >= 400:
+        raise RuntimeError(f"OpenRouter API request failed with status {response.status_code}")
+
+    response_data = response.json()
+    choices = response_data.get("choices") or []
+    if not choices:
+        raise RuntimeError("OpenRouter response did not include any choices")
+
+    message = choices[0].get("message", {})
+    response_text = parse_openrouter_content(message.get("content"))
+    if not response_text:
+        raise RuntimeError("No response text received from OpenRouter")
+    return response_text
+
+
 def parse_questions(questions):
     if isinstance(questions, list):
         raw_items = [str(item).strip() for item in questions]
@@ -432,5 +475,65 @@ def generate_job_question_answers(
         }
     except Exception as exc:
         logger.error(f"Error generating job question answers: {exc}")
+        logger.error(traceback.format_exc())
+        return {"error": str(exc), "traceback": traceback.format_exc()}
+
+
+def generate_resume_bullets(job_description, company_name, custom_instructions, personal_info, model=None, retry_history=None):
+    """Generate LaTeX-safe bullets for experience and projects only."""
+    try:
+        selected_model = model or get_default_model()
+        system_instruction = (
+            "You write concise resume bullets. Return valid JSON only. "
+            "Never include markdown fences."
+        )
+        shared_context = build_application_context(
+            job_description,
+            company_name,
+            custom_instructions,
+            personal_info,
+        )
+        schema = (
+            '{"experience":[{"title":"<exact role title>","bullets":["...","..."]}],'
+            '"projects":[{"title":"<exact project title>","bullets":["...","..."]}]}'
+        )
+        base_prompt = "\n\n".join(
+            [
+                f"Target company: {company_name}",
+                "Update only bullet text for Experience and Projects sections.",
+                "For each schema title, return exactly 2 bullets.",
+                "Each bullet must be <= 34 words and plain text.",
+                f"Return valid JSON only using this schema: {schema}",
+                shared_context,
+            ]
+        )
+
+        history = list(retry_history or [])
+        last_error = ""
+        for attempt in range(1, 4):
+            retry_context = ""
+            if history:
+                retry_context = (
+                    "\n\nPrevious attempt history:\n"
+                    + "\n".join(history)
+                    + f"\nFix this latest error: {last_error}"
+                )
+            response_text = call_openrouter_json(
+                system_instruction,
+                base_prompt + retry_context,
+                selected_model,
+                max_tokens=900,
+                enable_web_search=False,
+            )
+            try:
+                payload = parse_json_response(response_text)
+                return payload
+            except Exception as exc:
+                last_error = f"JSON parsing error: {exc}"
+                history.append(f"Attempt {attempt} output: {response_text[:1200]}")
+
+        raise ValueError(f"Unable to generate valid JSON after retries: {last_error}")
+    except Exception as exc:
+        logger.error(f"Error generating resume bullets: {exc}")
         logger.error(traceback.format_exc())
         return {"error": str(exc), "traceback": traceback.format_exc()}

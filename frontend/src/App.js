@@ -118,6 +118,7 @@ function App() {
   const isGeneratingCoverLetter = loadingAction === 'cover-letter';
   const isAnsweringQuestions = loadingAction === 'question-answers';
   const isDownloadingPdf = loadingAction === 'pdf-download';
+  const isGeneratingResume = loadingAction === 'resume-generate';
   const isBusy = Boolean(loadingAction);
 
   const handlePersonalInfoChange = (e) => {
@@ -311,6 +312,43 @@ function App() {
     } catch (err) {
       console.error('Error during PDF download:', err);
       setPdfError(err.message || 'An unexpected error occurred while preparing the PDF');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+
+  const handleGenerateResume = async () => {
+    const validationError = validateSharedFields();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    setLoadingAction('resume-generate');
+    setError(null);
+    setApiError(null);
+    setPdfError(null);
+    try {
+      const response = await fetch(`${API_URL}/api/generate-resume`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildRequestPayload()),
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        setPdfError(data.error || data.compilerError || 'Failed to generate resume PDF');
+        return;
+      }
+      if (data.resumeFile) {
+        const downloadLink = document.createElement('a');
+        downloadLink.href = `${API_URL}/api/download/${data.resumeFile}`;
+        downloadLink.download = data.resumeFile;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+      }
+    } catch (err) {
+      setPdfError(err.message || 'An unexpected error occurred while generating resume');
     } finally {
       setLoadingAction(null);
     }
@@ -544,6 +582,15 @@ function App() {
               onClick={handleAnswerQuestions}
             >
               {isAnsweringQuestions ? 'Answering Questions...' : 'Answer Application Questions'}
+            </button>
+
+            <button
+              type="button"
+              disabled={isBusy || modelsLoading || !!modelLoadError || !selectedModel}
+              className="secondary-button"
+              onClick={handleGenerateResume}
+            >
+              {isGeneratingResume ? 'Generating Resume PDF...' : 'Generate Resume PDF'}
             </button>
           </div>
         </form>
