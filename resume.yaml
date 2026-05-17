@@ -1,0 +1,83 @@
+profile:
+  name: Devang Borkar
+  phone: "+1 (312) 358-5722"
+  email: devangborkar3@gmail.com
+  links:
+    - label: LinkedIn
+      url: https://www.linkedin.com/in/devang-borkar-710b49201/
+    - label: GitHub
+      url: https://github.com/devangb3
+    - label: Portfolio
+      url: https://devang-borkar.netlify.app/
+
+skills:
+  - category: Languages
+    items: Python, C#, Java, TypeScript/JavaScript, SQL, Go, C++
+  - category: AI/ML
+    items: LLMs, Multi-agent systems, LoRA fine-tuning, Prompt engineering, ReACT agents, tool-calling, RAG, embeddings, Harness Engineering, Synthetic Data Generation, Agentic Memory, FAISS
+  - category: Frameworks
+    items: PyTorch, HuggingFace Transformers, FastAPI, LangChain, React, MongoDB, Redis
+  - category: Cloud/APIs
+    items: CI/CD Pipelines, GCP, AWS, Docker, OpenAI/Anthropic/ Gemini APIs, OpenRouter
+  - category: Coding Agents
+    items: Cursor IDE, Claude Code, Codex CLI, OpenCode, Github Copilot
+
+education:
+  - degree: M.S. Computer Science
+    institution: University of California, Davis
+    detail: "GPA: 3.91"
+    date: Expected May 2026
+  - degree: B.E. Computer Science
+    institution: SPPU, Pune
+    detail: "GPA: 4.0"
+    date: Graduated
+
+experience:
+  - id: experience_pilotcrew_ai_engineer
+    title: AI Engineer
+    organization: PilotCrew AI
+    dates: Oct 2025 -- Present
+    bullets:
+      - Developed end-to-end AI evaluation infrastructure for agentic systems, using Python APIs, MongoDB persistence, Dockerized execution, and observability workflows for repeatable model-quality measurement.
+      - Built an automated prompt optimization pipeline that analyzes agentic traces and iteratively improve prompts, achieving a 6.63% performance lift for conversational agents on MultiChallenge benchmark.
+      - Engineered agent harnesses for execution, tool-use tracing, hidden-state management, deterministic grading, and failure analysis across coding, interactive tool-calling and deep research workflows.
+  - id: experience_learnhaus_swe_intern
+    title: SWE Intern
+    organization: LearnHaus AI
+    dates: Jun 2025 -- Aug 2025
+    bullets:
+      - Built a full-stack multimodal AI application (React, Python) from scratch, processing video, audio, and text inputs with optimized latency for real-time user feedback.
+      - Developed a LLM-as-Judge evaluation framework using GPT-5 and Gemini-3 to score model outputs across multiple quality dimensions; deployed to Google Cloud Platform(GCP)
+  - id: experience_hexaview_software_engineer
+    title: Software Engineer
+    organization: Hexaview Technologies
+    dates: Aug 2022 -- Sep 2024
+    bullets:
+      - Shipped 20+ production features for a Fortune 500 fintech platform; contributed to scalable microservices using C# and SQL. Collaborated within a 30+ person cross-functional Agile team using JIRA.
+      - Optimized a legacy .NET backend servicing over 1 million monthly requests, applying key design patterns to reduce code complexity & successfully redesigning 50+ REST APIs in MVC architecture
+
+projects:
+  - id: project_causalflow
+    title: "CausalFlow: Agentic Trace Debugging Framework"
+    url: https://github.com/devangb3/CausalFlow
+    url_label: GitHub
+    context: NeurIPS '26 submission
+    bullets:
+      - Built a Python framework for causal attribution in multi-step LLM agent traces, identifying failure-inducing reasoning/tool steps and generating localized repair pairs that are useful as DPO post-training data.
+      - Evaluated across 3,000+ math, code generation, web QA, and medical browsing tasks; repaired 42.7% of failed agent outputs and improved post-repair accuracy by a median +16.9 % over baseline.
+  - id: project_process_reward_model
+    title: Process Reward Model for On-Device LLMs
+    url: https://github.com/devangb3/Process-Reward-Models
+    url_label: GitHub
+    context: Graduate Research
+    bullets:
+      - Performed Supervised Fine Tuning on an 8B parameter LLM using PyTorch to verify reasoning steps; optimized for edge deployment with a lightweight 0.6B model.
+      - Improved model accuracy by 21% on GSM8K using specualtive decoding over baseline methods; published model weights to HuggingFace.
+  - id: project_resshare
+    title: "ResShare: Decentralized File Sharing Platform"
+    url: https://github.com/ResilientApp/ResShareDeployable
+    url_label: GitHub
+    context: Apache Foundation - ResilientDB
+    bullets:
+      - Built a full-stack file-sharing platform using Flask and React, implementing REST APIs for user authentication, access control, file upload/download, folder hierarchy management and sharing workflows.
+      - Added a document indexing and RAG pipeline for files using text extraction, semantic chunking, embeddings, FAISS search, source-attributed responses, and per-user retrieval isolation.

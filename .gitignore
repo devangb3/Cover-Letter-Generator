@@ -6,6 +6,8 @@ __pycache__/
 .env
 /frontend/node_modules/
 output/
+pdf_service/build/
+pdf_service/output/
 *.log
 application_test/
 .cursor/

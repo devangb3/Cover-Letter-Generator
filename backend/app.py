@@ -7,10 +7,19 @@ import traceback
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from api_service.ai_service import generate_cover_letter, generate_job_question_answers, generate_resume_bullets
-from api_service.model_config import get_default_model, get_models, is_allowed_model, load_model_config
+from backend.api_service.ai_service import (
+    generate_cover_letter,
+    generate_job_question_answers,
+    generate_resume_bullets,
+)
+from backend.api_service.model_config import get_default_model, get_models, is_allowed_model, load_model_config
 from pdf_service.pdf_generator import generate_cover_letter_pdf
-from pdf_service.resume_generator import render_resume_tex, compile_tex_to_pdf
+from pdf_service.resume_generator import (
+    compile_tex_to_pdf,
+    get_resume_tailoring_targets,
+    load_resume_yaml,
+    render_tailored_resume_tex,
+)
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -152,14 +161,24 @@ def generate_resume():
         if not is_allowed_model(model):
             return jsonify({'error': f"Invalid model '{model}'. Please select a model from /api/models."}), 400
 
-        template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ai_eng.tex')
+        resume_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'resume.yaml')
+        resume_data = load_resume_yaml(resume_path)
+        resume_targets = get_resume_tailoring_targets(resume_data)
         retry_history = []
         for attempt in range(1, 4):
-            bullet_payload = generate_resume_bullets(job_description, company_name, custom_instructions, personal_info, model, retry_history=retry_history)
+            bullet_payload = generate_resume_bullets(
+                job_description,
+                company_name,
+                custom_instructions,
+                personal_info,
+                resume_targets,
+                model,
+                retry_history=retry_history,
+            )
             if 'error' in bullet_payload:
                 return jsonify(bullet_payload), 500
 
-            tex_content = render_resume_tex(template_path, bullet_payload)
+            tex_content = render_tailored_resume_tex(resume_data, bullet_payload)
             compile_result = compile_tex_to_pdf(tex_content)
             if compile_result.get('ok'):
                 return jsonify({'resumeFile': compile_result.get('resumeFile')}), 200
