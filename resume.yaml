@@ -1,4 +1,5 @@
 profile:
+  location: Davis, CA
   name: Devang Borkar
   phone: "+1 (312) 358-5722"
   email: devangborkar3@gmail.com
@@ -20,51 +21,47 @@ skills:
   - category: Cloud/APIs
     items: CI/CD Pipelines, GCP, AWS, Docker, OpenAI/Anthropic/ Gemini APIs, OpenRouter
   - category: Coding Agents
-    items: Cursor IDE, Claude Code, Codex CLI, OpenCode, Github Copilot
+    items: Claude Code, Codex CLI, Cursor IDE, OpenCode, Github Copilot
 
 education:
-  - degree: M.S. Computer Science
+  - degree: Masters of Science in Computer Science
     institution: University of California, Davis
-    detail: "GPA: 3.91"
-    date: Expected May 2026
-  - degree: B.E. Computer Science
-    institution: SPPU, Pune
-    detail: "GPA: 4.0"
-    date: Graduated
+    gpa: "GPA: 3.91/4.0"
+    date: Sept 2024 - June 2026
+    coursework: Distributed Databases, Machine Learning, Data Structures and Algorithms, Vision Language Models
+  - degree: Bachelor of Engineering in Computer Engineering | Honors Track in AI/ML
+    institution: Pune University, India
+    gpa: "GPA: 4.0/4.0"
+    date: Aug 2019 - June 2023
 
 experience:
   - id: experience_pilotcrew_ai_engineer
-    title: AI Engineer
+    title: Software Engineer
     organization: PilotCrew AI
     dates: Oct 2025 -- Present
+    location: Davis, CA
     bullets:
       - Developed end-to-end AI evaluation infrastructure for agentic systems, using Python APIs, MongoDB persistence, Dockerized execution, and observability workflows for repeatable model-quality measurement.
       - Built an automated prompt optimization pipeline that analyzes agentic traces and iteratively improve prompts, achieving a 6.63% performance lift for conversational agents on MultiChallenge benchmark.
       - Engineered agent harnesses for execution, tool-use tracing, hidden-state management, deterministic grading, and failure analysis across coding, interactive tool-calling and deep research workflows.
   - id: experience_learnhaus_swe_intern
-    title: SWE Intern
+    title: Software Engineer Intern
     organization: LearnHaus AI
-    dates: Jun 2025 -- Aug 2025
+    dates: Jun -- Aug 2025
+    location: Sacramento, CA
     bullets:
       - Built a full-stack multimodal AI application (React, Python) from scratch, processing video, audio, and text inputs with optimized latency for real-time user feedback.
       - Developed a LLM-as-Judge evaluation framework using GPT-5 and Gemini-3 to score model outputs across multiple quality dimensions; deployed to Google Cloud Platform(GCP)
   - id: experience_hexaview_software_engineer
     title: Software Engineer
     organization: Hexaview Technologies
-    dates: Aug 2022 -- Sep 2024
+    dates: Aug 2022 -- Sept 2024
+    location: Pune, India
     bullets:
       - Shipped 20+ production features for a Fortune 500 fintech platform; contributed to scalable microservices using C# and SQL. Collaborated within a 30+ person cross-functional Agile team using JIRA.
       - Optimized a legacy .NET backend servicing over 1 million monthly requests, applying key design patterns to reduce code complexity & successfully redesigning 50+ REST APIs in MVC architecture
 
 projects:
-  - id: project_causalflow
-    title: "CausalFlow: Agentic Trace Debugging Framework"
-    url: https://github.com/devangb3/CausalFlow
-    url_label: GitHub
-    context: NeurIPS '26 submission
-    bullets:
-      - Built a Python framework for causal attribution in multi-step LLM agent traces, identifying failure-inducing reasoning/tool steps and generating localized repair pairs that are useful as DPO post-training data.
-      - Evaluated across 3,000+ math, code generation, web QA, and medical browsing tasks; repaired 42.7% of failed agent outputs and improved post-repair accuracy by a median +16.9 % over baseline.
   - id: project_process_reward_model
     title: Process Reward Model for On-Device LLMs
     url: https://github.com/devangb3/Process-Reward-Models
@@ -81,3 +78,11 @@ projects:
     bullets:
       - Built a full-stack file-sharing platform using Flask and React, implementing REST APIs for user authentication, access control, file upload/download, folder hierarchy management and sharing workflows.
       - Added a document indexing and RAG pipeline for files using text extraction, semantic chunking, embeddings, FAISS search, source-attributed responses, and per-user retrieval isolation.
+  - id: project_causalflow
+    title: "CausalFlow: Agentic Trace Debugging Framework"
+    url: https://github.com/devangb3/CausalFlow
+    url_label: GitHub
+    context: NeurIPS '26 submission
+    bullets:
+      - Built a Python framework for causal attribution in multi-step LLM agent traces, identifying failure-inducing reasoning/tool steps and generating localized repair pairs that are useful as DPO post-training data.
+      - Evaluated across 3,000+ math, code generation, web QA, and medical browsing tasks; repaired 42.7% of failed agent outputs and improved post-repair accuracy by a median +16.9 % over baseline.

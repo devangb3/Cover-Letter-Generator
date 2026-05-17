@@ -1,91 +1,3 @@
-import logging
-import os
-import re
-import subprocess
-import tempfile
-import traceback
-from datetime import datetime
-
-logger = logging.getLogger("resume_generator")
-
-EXPERIENCE_TITLES = ["Member of Technical Staff", "Software Engineer Intern", "Software Engineer"]
-PROJECT_TITLES = ["Causal RL for LLM Agent Post-Training", "Explain and Verify", "ShareX"]
-
-
-def escape_latex(text: str) -> str:
-    replacements = {"\\": r"\textbackslash{}", "&": r"\&", "%": r"\%", "$": r"\$", "#": r"\#", "_": r"\_", "{": r"\{", "}": r"\}", "~": r"\textasciitilde{}", "^": r"\textasciicircum{}"}
-    return "".join(replacements.get(ch, ch) for ch in text)
-
-
-def _extract_section(lines, section_title):
-    start = next(i for i, line in enumerate(lines) if f"\\textbf{{{section_title}}}" in line)
-    end = len(lines)
-    for i in range(start + 1, len(lines)):
-        if "\\textbf{" in lines[i] and section_title not in lines[i]:
-            end = i
-            break
-    return start, end
-
-
-def _replace_bullets_for_titles(lines, section_start, section_end, title_to_bullets):
-    i = section_start
-    while i < section_end:
-        role_match = re.search(r"\\textbf\{([^}]*)\}", lines[i])
-        if not role_match:
-            i += 1
-            continue
-        title = role_match.group(1).strip()
-        if title not in title_to_bullets:
-            i += 1
-            continue
-        begin = next(j for j in range(i, section_end) if "\\begin{itemize}" in lines[j])
-        end = next(j for j in range(begin + 1, section_end) if "\\end{itemize}" in lines[j])
-        new_items = [f"\\item {escape_latex(b.strip())}\n" for b in title_to_bullets[title]]
-        lines[begin + 1:end] = new_items
-        delta = len(new_items) - (end - (begin + 1))
-        section_end += delta
-        i = end + delta + 1
-    return lines
-
-
-def render_resume_tex(template_path, bullets_payload):
-    with open(template_path, "r", encoding="utf-8") as f:
-        lines = f.readlines()
-    exp_map = {entry["title"]: entry["bullets"] for entry in bullets_payload.get("experience", [])}
-    proj_map = {entry["title"]: entry["bullets"] for entry in bullets_payload.get("projects", [])}
-    for t in EXPERIENCE_TITLES:
-        if t not in exp_map or len(exp_map[t]) != 2:
-            raise ValueError(f"Missing or invalid experience bullets for '{t}'")
-    for t in PROJECT_TITLES:
-        if t not in proj_map or len(proj_map[t]) != 2:
-            raise ValueError(f"Missing or invalid project bullets for '{t}'")
-    exp_start, exp_end = _extract_section(lines, "Experience")
-    proj_start, proj_end = _extract_section(lines, "Projects")
-    lines = _replace_bullets_for_titles(lines, exp_start, exp_end, exp_map)
-    lines = _replace_bullets_for_titles(lines, proj_start, proj_end, proj_map)
-    return "".join(lines)
-
-
-def compile_tex_to_pdf(tex_content: str):
-    try:
-        with tempfile.TemporaryDirectory() as td:
-            tex_path = os.path.join(td, "resume.tex")
-            with open(tex_path, "w", encoding="utf-8") as f:
-                f.write(tex_content)
-            proc = subprocess.run(["pdflatex", "-interaction=nonstopmode", "resume.tex"], cwd=td, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=60)
-            if proc.returncode != 0 or not os.path.exists(os.path.join(td, "resume.pdf")):
-                return {"ok": False, "compilerError": proc.stdout[-3000:]}
-            out_dir = os.path.join(os.path.dirname(__file__), "output")
-            os.makedirs(out_dir, exist_ok=True)
-            filename = f"resume_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-            out_path = os.path.join(out_dir, filename)
-            with open(os.path.join(td, "resume.pdf"), "rb") as rf, open(out_path, "wb") as wf:
-                wf.write(rf.read())
-            return {"ok": True, "resumeFile": filename}
-    except Exception as exc:
-        logger.error("Resume compilation failed: %s", exc)
-        logger.error(traceback.format_exc())
-        return {"ok": False, "compilerError": str(exc)}
 import copy
 import logging
 import os
@@ -193,41 +105,49 @@ def _line(text=""):
     return f"{text}\n"
 
 
-def _render_contact_link(label, url):
+def _href(label, url):
     if not url:
         return escape_latex(label)
-    if url.startswith("mailto:"):
-        href = url
-    else:
-        href = url
-    return rf"\href{{{href}}}{{{escape_latex(label)}}}"
+    return rf"\href{{{url}}}{{{escape_latex(label)}}}"
+
+
+def _italic(text):
+    return rf"\textit{{{escape_latex(text)}}}"
 
 
 def _render_header(profile):
     links = profile.get("links", [])
-    parts = [escape_latex(profile.get("phone", "")), _render_contact_link(profile.get("email", ""), f"mailto:{profile.get('email', '')}")]
+    parts = [escape_latex(profile.get("location", ""))]
+    parts.extend(
+        [
+            escape_latex(profile.get("phone", "")),
+            _href(profile.get("email", ""), f"mailto:{profile.get('email', '')}"),
+        ]
+    )
     for link in links:
-        parts.append(_render_contact_link(link.get("label", ""), link.get("url", "")))
+        parts.append(_href(link.get("label", ""), link.get("url", "")))
 
     return [
         _line(r"\begin{center}"),
         _line(rf"{{\fontsize{{15}}{{17}}\selectfont \textbf{{{escape_latex(profile.get('name', ''))}}}}}\\"),
-        _line(r"\vspace{2pt}"),
+        _line(r"\vspace{3pt}"),
+        _line(r"{\fontsize{9.8}{11}\selectfont"),
         _line((r" \quad\textbar\quad ").join(part for part in parts if part)),
+        _line(r"}"),
         _line(r"\end{center}"),
+        _line(),
+        _line(r"\vspace{-2pt}"),
         _line(),
     ]
 
 
-def _render_section_header(title, vspace="-6pt"):
-    return [
-        _line(rf"\noindent\textbf{{{escape_latex(title)}}}"),
-        _line(rf"\vspace{{{vspace}}}"),
+def _render_itemize(items, itemsep="2pt"):
+    lines = [
+        _line(
+            rf"\begin{{itemize}}[leftmargin=0.28in, topsep=2pt, "
+            rf"itemsep={itemsep}, parsep=0pt, partopsep=0pt]"
+        )
     ]
-
-
-def _render_itemize(items, itemsep="-5pt"):
-    lines = [_line(rf"\begin{{itemize}}[leftmargin=0.45in, topsep=2pt, itemsep={itemsep}]")]
     for item in items:
         lines.append(_line(rf"\item {item}"))
     lines.append(_line(r"\end{itemize}"))
@@ -239,21 +159,48 @@ def _render_skills(skills):
         rf"\textbf{{{escape_latex(skill.get('category', ''))}:}} {escape_latex(skill.get('items', ''))}"
         for skill in skills
     ]
-    return _render_section_header("Skills") + _render_itemize(items)
+    return [
+        _line(r"\textbf{Skills}"),
+        _line(r"\vspace{-2pt}"),
+        *_render_itemize(items, itemsep="1.5pt"),
+        _line(),
+    ]
+
+
+def _education_gpa(entry):
+    gpa = entry.get("gpa")
+    if gpa:
+        return gpa
+    detail = str(entry.get("detail", ""))
+    if detail.lower().startswith("gpa"):
+        return detail
+    return ""
 
 
 def _render_education(education):
-    items = []
-    for entry in education:
-        degree = escape_latex(entry.get("degree", ""))
+    lines = [_line(r"\sectionheading{Education}")]
+    for index, entry in enumerate(education):
+        if index:
+            lines.append(_line(r"\vspace{4pt}"))
+            lines.append(_line())
+
         institution = escape_latex(entry.get("institution", ""))
-        detail = entry.get("detail", "")
-        date = escape_latex(entry.get("date", ""))
-        left = f"{degree}, {institution}"
-        if detail:
-            left = f"{left} ({escape_latex(detail)})"
-        items.append(rf"{left} \hfill \textit{{{date}}}")
-    return _render_section_header("Education") + _render_itemize(items)
+        date = _italic(entry.get("date", ""))
+        degree = _italic(entry.get("degree", ""))
+        gpa = _education_gpa(entry)
+        coursework = entry.get("coursework")
+
+        lines.append(_line(rf"\textbf{{{institution}}} \hfill {date}\\"))
+        if gpa:
+            line_end = r"\\" if coursework else r"\par"
+            lines.append(_line(rf"{degree} \hfill {_italic(gpa)}{line_end}"))
+        else:
+            line_end = r"\\" if coursework else r"\par"
+            lines.append(_line(rf"{degree}{line_end}"))
+        if coursework:
+            lines.append(_line(rf"Relevant Coursework: {_italic(coursework)}"))
+            lines.append(_line())
+    return lines
 
 
 def _render_entry_bullets(bullets):
@@ -261,44 +208,44 @@ def _render_entry_bullets(bullets):
 
 
 def _render_experience(experience):
-    lines = _render_section_header("Experience", vspace="-3pt")
+    lines = [_line(r"\sectionheading{Experience}")]
     for index, entry in enumerate(experience):
         if index:
-            lines.append(_line(r"\vspace{-6pt}"))
+            lines.append(_line(r"\vspace{3pt}"))
+            lines.append(_line())
         title = escape_latex(entry.get("title", ""))
-        organization = escape_latex(entry.get("organization", ""))
         dates = escape_latex(entry.get("dates", ""))
+        organization = escape_latex(entry.get("organization", ""))
+        location = escape_latex(entry.get("location", ""))
         lines.extend(
             [
-                _line(rf"\noindent\textbf{{{title}}} \textit{{{organization}}} \hfill {dates}"),
-                _line(r"\vspace{-6pt}"),
+                _line(rf"\subheading{{{title}}}{{{dates}}}{{{organization}}}{{{location}}}"),
+                _line(r"\vspace{-1pt}"),
             ]
         )
         lines.extend(_render_entry_bullets(entry.get("bullets", [])))
     return lines
 
 
-def _render_project_suffix(entry):
-    suffix_parts = []
+def _project_meta(entry):
+    link = ""
     if entry.get("url"):
-        suffix_parts.append(rf"\href{{{entry.get('url')}}}{{\textit{{{escape_latex(entry.get('url_label', 'GitHub'))}}}}}")
-    if entry.get("context"):
-        suffix_parts.append(rf"\textit{{{escape_latex(entry.get('context'))}}}")
-    if not suffix_parts:
-        return ""
-    return r" \hfill " + r" \textbar{} ".join(suffix_parts)
+        link = rf"\href{{{entry.get('url')}}}{{\textit{{{escape_latex(entry.get('url_label', 'GitHub'))}}}}}"
+    return link, _italic(entry.get("context", "")) if entry.get("context") else ""
 
 
 def _render_projects(projects):
-    lines = _render_section_header("Projects")
+    lines = [_line(r"\sectionheading{Projects}")]
     for index, entry in enumerate(projects):
         if index:
-            lines.append(_line(r"\vspace{-6pt}"))
+            lines.append(_line(r"\vspace{3pt}"))
+            lines.append(_line())
         title = escape_latex(entry.get("title", ""))
+        link, context = _project_meta(entry)
         lines.extend(
             [
-                _line(rf"\noindent\textbf{{{title}}}{_render_project_suffix(entry)}"),
-                _line(r"\vspace{-6pt}"),
+                _line(rf"\projectheading{{{title}}}{{{link}}}{{{context}}}"),
+                _line(r"\vspace{-1pt}"),
             ]
         )
         lines.extend(_render_entry_bullets(entry.get("bullets", [])))
@@ -307,18 +254,41 @@ def _render_projects(projects):
 
 def render_resume_tex(resume_data):
     lines = [
-        _line(r"\documentclass[11pt]{article}"),
-        _line(r"\usepackage[left=0.5in, right=0.5in, top=0.3in, bottom=0.3in]{geometry}"),
-        _line(r"\usepackage{helvet}"),
-        _line(r"\renewcommand{\familydefault}{\sfdefault}"),
-        _line(r"\usepackage{setspace}"),
-        _line(r"\usepackage{parskip}"),
+        _line(r"\documentclass[10pt]{article}"),
+        _line(),
+        _line(r"\usepackage[left=0.45in, right=0.45in, top=0.32in, bottom=0.32in]{geometry}"),
+        _line(r"\usepackage{iftex}"),
+        _line(r"\ifPDFTeX"),
+        _line(r"  \usepackage[T1]{fontenc}"),
+        _line(r"  \usepackage{helvet}"),
+        _line(r"  \renewcommand{\familydefault}{\sfdefault}"),
+        _line(r"\else"),
+        _line(r"  \usepackage{fontspec}"),
+        _line(r"  \setmainfont{Nimbus Sans}"),
+        _line(r"\fi"),
         _line(r"\usepackage{enumitem}"),
         _line(r"\usepackage{hyperref}"),
         _line(r"\hypersetup{colorlinks=true,urlcolor=blue}"),
+        _line(r"\usepackage{microtype}"),
         _line(),
         _line(r"\pagestyle{empty}"),
-        _line(r"\newcommand{\customspacing}{\setstretch{1.05}}"),
+        _line(r"\setlength{\parindent}{0pt}"),
+        _line(r"\setlength{\parskip}{0pt}"),
+        _line(r"\setlength{\tabcolsep}{0pt}"),
+        _line(r"\renewcommand{\baselinestretch}{1.04}"),
+        _line(),
+        _line(r"\newcommand{\sectionheading}[1]{%"),
+        _line(r"  \vspace{7pt}"),
+        _line(r"  {\large\textbf{#1}}\\[3pt]"),
+        _line(r"}"),
+        _line(r"\newcommand{\subheading}[4]{%"),
+        _line(r"  \textbf{#1} \hfill #2\\"),
+        _line(r"  \textit{#3} \hfill #4"),
+        _line(r"}"),
+        _line(),
+        _line(r"\newcommand{\projectheading}[3]{%"),
+        _line(r"  \textbf{#1} \hfill #2 \textbar{} #3"),
+        _line(r"}"),
         _line(),
         _line(r"\begin{document}"),
         _line(),
@@ -326,15 +296,12 @@ def render_resume_tex(resume_data):
     lines.extend(_render_header(resume_data["profile"]))
     lines.extend(
         [
-            _line(r"\fontsize{10.5}{12}\selectfont"),
-            _line(r"\customspacing"),
+            _line(r"\fontsize{10}{12}\selectfont"),
             _line(),
         ]
     )
     lines.extend(_render_skills(resume_data["skills"]))
-    lines.append(_line(r"\vspace{-6pt}"))
     lines.extend(_render_education(resume_data["education"]))
-    lines.append(_line(r"\vspace{-6pt}"))
     lines.extend(_render_experience(resume_data["experience"]))
     lines.append(_line())
     lines.extend(_render_projects(resume_data["projects"]))
