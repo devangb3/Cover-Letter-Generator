@@ -1,6 +1,7 @@
 import copy
 import logging
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -26,6 +27,20 @@ def escape_latex(text: str) -> str:
         "^": r"\textasciicircum{}",
     }
     return "".join(replacements.get(ch, ch) for ch in str(text))
+
+
+def sanitize_filename_part(value: str) -> str:
+    filename = re.sub(r"\s+", "_", str(value or "").strip())
+    filename = re.sub(r"[^A-Za-z0-9_-]+", "_", filename)
+    filename = re.sub(r"_+", "_", filename)
+    return filename.strip("_")
+
+
+def _resume_filename(company_name: str = "") -> str:
+    sanitized_company = sanitize_filename_part(company_name)
+    if sanitized_company:
+        return f"resume_{sanitized_company}.pdf"
+    return f"resume_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
 
 
 def load_resume_yaml(resume_path: str):
@@ -313,7 +328,7 @@ def render_tailored_resume_tex(resume_data, bullet_payload):
     return render_resume_tex(apply_bullet_updates(resume_data, bullet_payload))
 
 
-def compile_tex_to_pdf(tex_content: str):
+def compile_tex_to_pdf(tex_content: str, company_name: str = ""):
     try:
         work_root = os.path.join(os.path.dirname(__file__), "build")
         os.makedirs(work_root, exist_ok=True)
@@ -345,7 +360,7 @@ def compile_tex_to_pdf(tex_content: str):
                 return {"ok": False, "compilerError": proc.stdout[-3000:]}
             out_dir = os.path.join(os.path.dirname(__file__), "output")
             os.makedirs(out_dir, exist_ok=True)
-            filename = f"resume_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+            filename = _resume_filename(company_name)
             out_path = os.path.join(out_dir, filename)
             with open(os.path.join(td, "resume.pdf"), "rb") as rf, open(out_path, "wb") as wf:
                 wf.write(rf.read())

@@ -6,6 +6,7 @@ Your job:
 - Preserve every provided id exactly.
 - Preserve the required bullet count for each id exactly.
 - Do not add, remove, rename, reorder, or merge resume entries.
+- Rewrite intensity should be high. Do not submit cosmetic edits, sentence cleanup, or light paraphrases of the current bullets.
 
 Evidence rules:
 - Use only the provided resume entries, project evidence bank, job description, personal details, custom instructions, and reliable company research when available.
@@ -18,8 +19,10 @@ Evidence rules:
 Resume bullet style:
 - Write in resume-bullet style, not first-person prose.
 - Start each bullet with a strong action verb.
-- Keep each bullet at or under the requested word limit from the user prompt.
-- Make bullets specific, compact, recruiter-readable, and ATS-friendly.
+- Make bullets specific, substantive, recruiter-readable, and ATS-friendly.
+- Prefer meaningful role-specific rewrites over light paraphrases when the job description has supported overlap with the entry.
+- Change the emphasis, wording, and structure of most bullets. Preserve facts and metrics, but make the resume visibly tailored to the target role.
+- Pull forward supported overlap with the job description, such as AI/ML deployment, RAG/search, evaluation, cloud deployment, Dockerized systems, observability, enterprise software, customer/stakeholder communication, reliability, and performance optimization.
 - Keep metrics when they are supported; do not overuse numbers.
 - Avoid inflated or generic language such as "pioneering," "democratize," "mission-driven," "fast learner," "passionate," "perfect fit," and "cutting-edge" unless directly supported and useful.
 - Do not include markdown, bullet symbols, citations, raw URLs, LaTeX commands, JSON comments, or explanatory text inside bullet strings.
@@ -30,7 +33,8 @@ Internal process:
 2. Review every provided resume target id, title, organization, current bullets, and required bullet count.
 3. Choose the strongest truthful emphasis for each entry based on the role.
 4. Rewrite every entry's bullets while preserving the id and exact bullet count.
-5. Before answering, check that every provided id appears exactly once and each bullets array has the required length.
+5. Compare your rewritten bullets to the original bullets. If a rewritten bullet keeps the same sentence structure or only swaps a few words, rewrite it again.
+6. Before answering, check that every provided id appears exactly once and each bullets array has the required length.
 
 Output rules:
 - Return valid JSON only.

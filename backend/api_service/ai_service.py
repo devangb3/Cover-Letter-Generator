@@ -33,7 +33,7 @@ if not OPENROUTER_API_KEY:
 API_SERVICE_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.dirname(API_SERVICE_DIR)
 ROOT_DIR = os.path.dirname(BACKEND_DIR)
-OPTIONAL_PERSONAL_INFO_FIELDS = {"address", "linkedin", "website"}
+OPTIONAL_PERSONAL_INFO_FIELDS = {"address", "linkedin", "website", "email", "phone"}
 WEB_SEARCH_TOOL = {
     "type": "openrouter:web_search",
     "parameters": {
@@ -272,6 +272,7 @@ def call_openrouter_json(
     prompt,
     selected_model,
     max_tokens=800,
+    temperature=0.2,
     enable_web_search=False,
 ):
     if not OPENROUTER_API_KEY:
@@ -284,7 +285,7 @@ def call_openrouter_json(
             {"role": "user", "content": prompt},
         ],
         "max_tokens": max_tokens,
-        "temperature": 0.2,
+        "temperature": temperature,
     }
     if enable_web_search:
         payload["tools"] = [WEB_SEARCH_TOOL]
@@ -521,7 +522,12 @@ def generate_resume_bullets(
                 "Return one update for every provided id.",
                 "Bullet count requirements:",
                 target_requirements,
-                "Each bullet must be <= 34 words and plain text.",
+                "Each bullet must be plain text.",
+                "Rewrite strength requirements:",
+                "- Make the bullets visibly different from the current_bullets; do not merely shorten, clean up, or swap a few words.",
+                "- Preserve truthful facts, but recast the emphasis around the target role's strongest supported needs.",
+                "- For AI/ML solution roles, prefer supported language around deployment, integration, RAG/search, evaluation, cloud, Docker, observability, customer or stakeholder workflows, enterprise scale, and performance optimization.",
+                "- If a target entry is only weakly relevant, still improve the framing substantially instead of returning a generic paraphrase.",
                 "Return valid JSON only that conforms to this Pydantic-generated JSON schema:",
                 response_schema,
                 "Resume entries available for tailoring:",
@@ -545,7 +551,8 @@ def generate_resume_bullets(
                 system_instruction,
                 base_prompt + retry_context,
                 model,
-                max_tokens=2200,
+                max_tokens=3200,
+                temperature=0.7,
                 enable_web_search=True,
             )
             try:

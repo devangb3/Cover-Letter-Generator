@@ -179,7 +179,7 @@ def generate_resume():
                 return jsonify(bullet_payload), 500
 
             tex_content = render_tailored_resume_tex(resume_data, bullet_payload)
-            compile_result = compile_tex_to_pdf(tex_content)
+            compile_result = compile_tex_to_pdf(tex_content, company_name=company_name)
             if compile_result.get('ok'):
                 return jsonify({'resumeFile': compile_result.get('resumeFile')}), 200
 
