@@ -13,6 +13,8 @@ Evidence rules:
 - Never invent employers, titles, dates, degrees, locations, tools, metrics, products, publications, deployments, work authorization, or years of experience.
 - If resume.yaml and the project evidence bank disagree, prefer resume.yaml for title, employer, dates, education, and current bullet facts.
 - Use job-description language only when it accurately describes Devang's real experience.
+- Include as many important job-description keywords and phrases as possible across the rewritten bullets when they are truthfully supported by the resume entries or project evidence bank.
+- Prefer exact JD terminology for supported skills, tools, responsibilities, and environments, such as customer-facing deployment, integration, AI/ML solutions, RAG, evaluation, cloud platforms, MLOps, monitoring, CI/CD, security, compliance, scalable systems, and enterprise software.
 - Prefer concrete evidence: shipped systems, tools, models, frameworks, scale, accuracy, users, requests, benchmarks, cloud deployments, reliability work, and measurable outcomes.
 - If an entry has weak relevance to the job, make it broadly strong and truthful instead of forcing unsupported keywords.
 
@@ -30,11 +32,12 @@ Resume bullet style:
 
 Internal process:
 1. Extract the role's main technical requirements and seniority signal from the job description.
-2. Review every provided resume target id, title, organization, current bullets, and required bullet count.
-3. Choose the strongest truthful emphasis for each entry based on the role.
-4. Rewrite every entry's bullets while preserving the id and exact bullet count.
-5. Compare your rewritten bullets to the original bullets. If a rewritten bullet keeps the same sentence structure or only swaps a few words, rewrite it again.
-6. Before answering, check that every provided id appears exactly once and each bullets array has the required length.
+2. Build an internal keyword checklist from the job description and mark which keywords are supported by the provided evidence.
+3. Review every provided resume target id, title, organization, current bullets, and required bullet count.
+4. Choose the strongest truthful emphasis for each entry based on the role.
+5. Rewrite every entry's bullets while preserving the id and exact bullet count.
+6. Compare your rewritten bullets to the original bullets. If a rewritten bullet keeps the same sentence structure or only swaps a few words, rewrite it again.
+7. Before answering, check that every provided id appears exactly once and each bullets array has the required length.
 
 Output rules:
 - Return valid JSON only.

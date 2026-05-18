@@ -8,6 +8,7 @@ import tempfile
 import traceback
 from datetime import datetime
 
+from pypdf import PdfReader, PdfWriter
 import yaml
 
 logger = logging.getLogger("resume_generator")
@@ -41,6 +42,17 @@ def _resume_filename(company_name: str = "") -> str:
     if sanitized_company:
         return f"resume_{sanitized_company}.pdf"
     return f"resume_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+
+
+def write_first_page_pdf(source_path: str, out_path: str):
+    reader = PdfReader(source_path)
+    if not reader.pages:
+        raise ValueError("Compiled resume PDF did not contain any pages")
+
+    writer = PdfWriter()
+    writer.add_page(reader.pages[0])
+    with open(out_path, "wb") as output_file:
+        writer.write(output_file)
 
 
 def load_resume_yaml(resume_path: str):
@@ -362,8 +374,7 @@ def compile_tex_to_pdf(tex_content: str, company_name: str = ""):
             os.makedirs(out_dir, exist_ok=True)
             filename = _resume_filename(company_name)
             out_path = os.path.join(out_dir, filename)
-            with open(os.path.join(td, "resume.pdf"), "rb") as rf, open(out_path, "wb") as wf:
-                wf.write(rf.read())
+            write_first_page_pdf(os.path.join(td, "resume.pdf"), out_path)
             return {"ok": True, "resumeFile": filename}
     except Exception as exc:
         logger.error("Resume compilation failed: %s", exc)

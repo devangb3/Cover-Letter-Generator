@@ -218,14 +218,30 @@ def download_file(filename):
         logger.info(f"Download request for file: {filename}")
         file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'pdf_service', 'output', filename)
         logger.debug(f"Attempting to send file from: {file_path}")
-        
+
         if not os.path.exists(file_path):
             logger.error(f"File not found: {file_path}")
             return jsonify({'error': 'File not found'}), 404
-            
+
         return send_file(file_path, as_attachment=True)
     except Exception as e:
         logger.error(f"Error in download_file: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 404
+
+
+@app.route('/api/view/<filename>')
+def view_file(filename):
+    """Serve a file inline (no download prompt) for embedding in iframes."""
+    try:
+        file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'pdf_service', 'output', filename)
+
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'File not found'}), 404
+
+        return send_file(file_path, as_attachment=False, mimetype='application/pdf')
+    except Exception as e:
+        logger.error(f"Error in view_file: {str(e)}")
         logger.error(traceback.format_exc())
         return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 404
 
