@@ -7,9 +7,19 @@ import traceback
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from api_service.ai_service import generate_cover_letter, generate_job_question_answers
-from api_service.model_config import get_default_model, get_models, is_allowed_model, load_model_config
+from backend.api_service.ai_service import (
+    generate_cover_letter,
+    generate_job_question_answers,
+    generate_resume_bullets,
+)
+from backend.api_service.model_config import get_default_model, get_models, is_allowed_model, load_model_config
 from pdf_service.pdf_generator import generate_cover_letter_pdf
+from pdf_service.resume_generator import (
+    compile_tex_to_pdf,
+    get_resume_tailoring_targets,
+    load_resume_yaml,
+    render_tailored_resume_tex,
+)
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -136,6 +146,51 @@ def answer_questions():
         logger.error(traceback.format_exc())
         return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
 
+
+
+@app.route('/api/generate-resume', methods=['POST'])
+def generate_resume():
+    try:
+        data = request.get_json(silent=True) or {}
+        job_description = data.get('jobDescription', '')
+        company_name = data.get('companyName', '')
+        custom_instructions = data.get('customInstructions', '')
+        personal_info = data.get('personalInfo', {})
+        model = data.get('model') or get_default_model()
+
+        if not is_allowed_model(model):
+            return jsonify({'error': f"Invalid model '{model}'. Please select a model from /api/models."}), 400
+
+        resume_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'resume.yaml')
+        resume_data = load_resume_yaml(resume_path)
+        resume_targets = get_resume_tailoring_targets(resume_data)
+        retry_history = []
+        for attempt in range(1, 4):
+            bullet_payload = generate_resume_bullets(
+                job_description,
+                company_name,
+                custom_instructions,
+                personal_info,
+                resume_targets,
+                model,
+                retry_history=retry_history,
+            )
+            if 'error' in bullet_payload:
+                return jsonify(bullet_payload), 500
+
+            tex_content = render_tailored_resume_tex(resume_data, bullet_payload)
+            compile_result = compile_tex_to_pdf(tex_content, company_name=company_name)
+            if compile_result.get('ok'):
+                return jsonify({'resumeFile': compile_result.get('resumeFile')}), 200
+
+            retry_history.append(f"Attempt {attempt} LaTeX compiler error: {compile_result.get('compilerError', '')}")
+
+        return jsonify({'error': 'Failed to generate a compilable resume after retries.', 'compilerError': retry_history[-1] if retry_history else ''}), 500
+    except Exception as e:
+        logger.error(f"Error in generate_resume: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+
 @app.route('/api/generate-pdf', methods=['POST'])
 def generate_pdf():
     try:
@@ -163,14 +218,30 @@ def download_file(filename):
         logger.info(f"Download request for file: {filename}")
         file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'pdf_service', 'output', filename)
         logger.debug(f"Attempting to send file from: {file_path}")
-        
+
         if not os.path.exists(file_path):
             logger.error(f"File not found: {file_path}")
             return jsonify({'error': 'File not found'}), 404
-            
+
         return send_file(file_path, as_attachment=True)
     except Exception as e:
         logger.error(f"Error in download_file: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 404
+
+
+@app.route('/api/view/<filename>')
+def view_file(filename):
+    """Serve a file inline (no download prompt) for embedding in iframes."""
+    try:
+        file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'pdf_service', 'output', filename)
+
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'File not found'}), 404
+
+        return send_file(file_path, as_attachment=False, mimetype='application/pdf')
+    except Exception as e:
+        logger.error(f"Error in view_file: {str(e)}")
         logger.error(traceback.format_exc())
         return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 404
 

@@ -7,12 +7,13 @@ import traceback
 
 import httpx
 
-from api_service.model_config import (
+from backend.api_service.model_config import (
     get_base_url,
     get_default_model,
     is_allowed_model,
     load_model_config,
 )
+from backend.models.llm_outputs import JobQuestionAnswerResponse, ResumeBulletPatch
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -30,7 +31,9 @@ if not OPENROUTER_API_KEY:
     logger.warning("OPENROUTER_API_KEY not set in environment")
 
 API_SERVICE_DIR = os.path.dirname(os.path.abspath(__file__))
-OPTIONAL_PERSONAL_INFO_FIELDS = {"address", "linkedin", "website"}
+BACKEND_DIR = os.path.dirname(API_SERVICE_DIR)
+ROOT_DIR = os.path.dirname(BACKEND_DIR)
+OPTIONAL_PERSONAL_INFO_FIELDS = {"address", "linkedin", "website", "email", "phone"}
 WEB_SEARCH_TOOL = {
     "type": "openrouter:web_search",
     "parameters": {
@@ -39,23 +42,30 @@ WEB_SEARCH_TOOL = {
         "search_context_size": "low",
     },
 }
-COMPANY_RESEARCH_QUESTION_PATTERN = re.compile(
-    r"\b("
-    r"why\s+(?:do\s+you\s+)?(?:want|interested)|"
-    r"why\s+(?:this\s+)?company|"
-    r"why\s+(?:are\s+you\s+)?(?:interested\s+in\s+)?(?:us|our)|"
-    r"what\s+do\s+you\s+know\s+about|"
-    r"company|product|mission|team|culture"
-    r")\b",
-    re.IGNORECASE,
-)
+
+def get_pydantic_json_schema(model):
+    if hasattr(model, "model_json_schema"):
+        return model.model_json_schema()
+    return model.schema()
+
+
+def validate_pydantic_model(model, payload):
+    if hasattr(model, "model_validate"):
+        return model.model_validate(payload)
+    return model.parse_obj(payload)
+
+
+def dump_pydantic_model(model_instance):
+    if hasattr(model_instance, "model_dump"):
+        return model_instance.model_dump()
+    return model_instance.dict()
 
 
 def load_projects():
     """Load projects from constants.js and format them for the prompt."""
     try:
         constants_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "..", "static", "constants.js"
+            ROOT_DIR, "static", "constants.js"
         )
         logger.info(f"Loading projects from: {constants_path}")
 
@@ -106,7 +116,7 @@ def load_projects():
 def load_resume_pdf():
     """Read resume bytes from static/resume.pdf."""
     resume_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "..", "static", "resume.pdf"
+        ROOT_DIR, "static", "resume.pdf"
     )
     logger.info(f"Loading resume from: {resume_path}")
     if not os.path.exists(resume_path):
@@ -194,12 +204,6 @@ def build_resume_data_url():
     return f"data:application/pdf;base64,{resume_data_b64}"
 
 
-def should_enable_question_web_search(questions):
-    """Return True when application questions ask for company-specific context."""
-    return True
-    # return any(COMPANY_RESEARCH_QUESTION_PATTERN.search(question) for question in questions)
-
-
 def call_openrouter(system_instruction, prompt, selected_model, enable_web_search=False):
     if not OPENROUTER_API_KEY:
         raise RuntimeError("OPENROUTER_API_KEY not configured")
@@ -263,6 +267,50 @@ def call_openrouter(system_instruction, prompt, selected_model, enable_web_searc
     return response_text
 
 
+def call_openrouter_json(
+    system_instruction,
+    prompt,
+    selected_model,
+    max_tokens=800,
+    temperature=0.2,
+    enable_web_search=False,
+):
+    if not OPENROUTER_API_KEY:
+        raise RuntimeError("OPENROUTER_API_KEY not configured")
+
+    payload = {
+        "model": selected_model,
+        "messages": [
+            {"role": "system", "content": system_instruction},
+            {"role": "user", "content": prompt},
+        ],
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+    }
+    if enable_web_search:
+        payload["tools"] = [WEB_SEARCH_TOOL]
+
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    endpoint = f"{get_base_url().rstrip('/')}/chat/completions"
+    response = httpx.post(endpoint, headers=headers, json=payload, timeout=120.0)
+    if response.status_code >= 400:
+        raise RuntimeError(f"OpenRouter API request failed with status {response.status_code}")
+
+    response_data = response.json()
+    choices = response_data.get("choices") or []
+    if not choices:
+        raise RuntimeError("OpenRouter response did not include any choices")
+
+    message = choices[0].get("message", {})
+    response_text = parse_openrouter_content(message.get("content"))
+    if not response_text:
+        raise RuntimeError("No response text received from OpenRouter")
+    return response_text
+
+
 def parse_questions(questions):
     if isinstance(questions, list):
         raw_items = [str(item).strip() for item in questions]
@@ -307,23 +355,24 @@ def strip_em_dashes(text: str) -> str:
 
 
 def normalize_question_answers(response_payload, original_questions):
-    answers = response_payload.get("answers")
-    if not isinstance(answers, list):
-        raise ValueError("Question answer response did not include an 'answers' array")
+    response_model = validate_pydantic_model(JobQuestionAnswerResponse, response_payload)
+    answers = response_model.answers
+    if len(answers) < len(original_questions):
+        raise ValueError("Question answer response did not include an answer for every question")
 
     normalized_answers = []
     for index, question in enumerate(original_questions):
         answer_item = answers[index] if index < len(answers) else None
-        if not isinstance(answer_item, dict):
+        if answer_item is None:
             raise ValueError(f"Missing structured answer for question {index + 1}")
 
-        answer_text = answer_item.get("answer")
+        answer_text = answer_item.answer
         if not isinstance(answer_text, str) or not answer_text.strip():
             raise ValueError(f"Missing answer text for question {index + 1}")
 
         normalized_answers.append(
             {
-                "question": str(answer_item.get("question") or question).strip(),
+                "question": question,
                 "answer": strip_em_dashes(answer_text.strip()),
             }
         )
@@ -337,13 +386,12 @@ def generate_cover_letter(job_description, company_name, custom_instructions, pe
         logger.info("Received processing request via service")
         logger.debug(f"Job description length: {len(job_description)}")
         logger.debug(f"Company name: {company_name}")
-        logger.debug(f"Custom instructions length: {len(custom_instructions)}")
-        logger.debug(f"Personal info keys: {list((personal_info or {}).keys())}")
+
 
         selected_model = model or get_default_model()
         logger.debug(f"Selected model: {selected_model}")
 
-        system_instruction = load_instruction("system_instruction.txt")
+        system_instruction = load_instruction("prompts/cover_letter_sys.txt")
         shared_context = build_application_context(
             job_description,
             company_name,
@@ -382,9 +430,8 @@ def generate_job_question_answers(
     custom_instructions,
     personal_info,
     questions,
-    model=None,
+    model="~google/gemini-flash-latest",
 ):
-    """Generate answers to job application questions using shared candidate context."""
     try:
         parsed_questions = parse_questions(questions)
         logger.info("Received job question answering request via service")
@@ -393,10 +440,8 @@ def generate_job_question_answers(
         if not parsed_questions:
             return {"error": "Please provide at least one application question"}
 
-        selected_model = model or get_default_model()
-        logger.debug(f"Selected model: {selected_model}")
 
-        system_instruction = load_instruction("question_answer_system_instruction.txt")
+        system_instruction = load_instruction("prompts/question_answer_sys.txt")
         shared_context = build_application_context(
             job_description,
             company_name,
@@ -406,11 +451,15 @@ def generate_job_question_answers(
         questions_block = "\n".join(
             f"{index + 1}. {question}" for index, question in enumerate(parsed_questions)
         )
+        response_schema = json.dumps(
+            get_pydantic_json_schema(JobQuestionAnswerResponse),
+            indent=2,
+        )
         prompt = "\n\n".join(
             [
                 f"Answer the following job application questions for {company_name} in first person as Devang Borkar.",
-                "Return valid JSON only using this schema:",
-                '{"answers":[{"question":"<original question>","answer":"<answer text>"}]}',
+                "Return valid JSON only that conforms to this Pydantic-generated JSON schema:",
+                response_schema,
                 "Preserve the original question order.",
                 shared_context,
                 f"Questions:\n{questions_block}",
@@ -420,8 +469,8 @@ def generate_job_question_answers(
         response_text = call_openrouter(
             system_instruction,
             prompt,
-            selected_model,
-            enable_web_search=should_enable_question_web_search(parsed_questions),
+            model,
+            enable_web_search=True,
         )
         response_payload = parse_json_response(response_text)
         normalized_answers = normalize_question_answers(response_payload, parsed_questions)
@@ -432,5 +481,90 @@ def generate_job_question_answers(
         }
     except Exception as exc:
         logger.error(f"Error generating job question answers: {exc}")
+        logger.error(traceback.format_exc())
+        return {"error": str(exc), "traceback": traceback.format_exc()}
+
+
+def generate_resume_bullets(
+    job_description,
+    company_name,
+    custom_instructions,
+    personal_info,
+    resume_targets,
+    model="~google/gemini-flash-latest",
+    retry_history=None,
+):
+    """Generate LaTeX-safe bullets for experience and projects only."""
+    try:
+        if not resume_targets:
+            raise ValueError("No resume entries were provided for tailoring")
+
+        system_instruction = load_instruction("prompts/resume_bullet_points_sys.txt")
+        shared_context = build_application_context(
+            job_description,
+            company_name,
+            custom_instructions,
+            personal_info,
+        )
+        response_schema = json.dumps(
+            get_pydantic_json_schema(ResumeBulletPatch),
+            indent=2,
+        )
+        targets_json = json.dumps(resume_targets, indent=2)
+        target_requirements = "\n".join(
+            f"- {target['id']}: exactly {target['bullet_count']} bullets"
+            for target in resume_targets
+        )
+        base_prompt = "\n\n".join(
+            [
+                f"Target company: {company_name}",
+                "Update only bullet text for the provided resume.yaml entries.",
+                "Return one update for every provided id.",
+                "Bullet count requirements:",
+                target_requirements,
+                "Each bullet must be plain text.",
+                "Rewrite strength requirements:",
+                "- Make the bullets visibly different from the current_bullets; do not merely shorten, clean up, or swap a few words.",
+                "- Preserve truthful facts, but recast the emphasis around the target role's strongest supported needs.",
+                "- For AI/ML solution roles, prefer supported language around deployment, integration, RAG/search, evaluation, cloud, Docker, observability, customer or stakeholder workflows, enterprise scale, and performance optimization.",
+                "- If a target entry is only weakly relevant, still improve the framing substantially instead of returning a generic paraphrase.",
+                "Return valid JSON only that conforms to this Pydantic-generated JSON schema:",
+                response_schema,
+                "Resume entries available for tailoring:",
+                targets_json,
+                "Job Context:",
+                shared_context,
+            ]
+        )
+
+        history = list(retry_history or [])
+        last_error = ""
+        for attempt in range(1, 4):
+            retry_context = ""
+            if history:
+                retry_context = (
+                    "\n\nPrevious attempt history:\n"
+                    + "\n".join(history)
+                    + f"\nFix this latest error: {last_error}"
+                )
+            response_text = call_openrouter_json(
+                system_instruction,
+                base_prompt + retry_context,
+                model,
+                max_tokens=3200,
+                temperature=0.7,
+                enable_web_search=True,
+            )
+            try:
+                payload = parse_json_response(response_text)
+                patch = validate_pydantic_model(ResumeBulletPatch, payload)
+                return dump_pydantic_model(patch)
+            except Exception as exc:
+                last_error = f"Resume bullet payload validation error: {exc}"
+                history.append(f"Attempt {attempt} output: {response_text[:1200]}")
+
+        raise ValueError(f"Unable to generate valid JSON after retries: {last_error}")
+    except Exception as exc:
+        logger.error(f"Error generating resume bullets: {exc}")
         logger.error(traceback.format_exc())
         return {"error": str(exc), "traceback": traceback.format_exc()}

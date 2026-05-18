@@ -2,9 +2,7 @@ import os
 from typing import Any, Dict, List, Optional
 import yaml
 
-
-
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DEFAULT_CONFIG_PATH = os.path.join(ROOT_DIR, "config", "model.yaml")
 
 _CONFIG: Optional[Dict[str, Any]] = None

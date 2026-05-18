@@ -8,6 +8,7 @@ The app now uses **OpenRouter only** for LLM generation, with the allowed model 
 
 - OpenRouter-powered cover letter generation
 - Job application question answering using the same resume/projects context
+- Resume PDF tailoring from structured `resume.yaml`
 - YAML-driven model allowlist (`config/model.yaml`)
 - Backend model validation (rejects unknown slugs)
 - React frontend with model dropdown fetched from backend
@@ -18,8 +19,10 @@ The app now uses **OpenRouter only** for LLM generation, with the allowed model 
 
 - `frontend/`: React app
 - `backend/`: Flask app serving APIs + frontend build
-- `api_service/`: Prompt construction, model config loading, OpenRouter calls
+- `backend/api_service/`: Prompt construction, model config loading, OpenRouter calls
+- `backend/models/`: Pydantic schemas for structured LLM outputs
 - `pdf_service/`: ReportLab PDF generation
+- `resume.yaml`: Structured resume source used for tailored resume generation
 - `config/`: YAML model configuration
 - `static/`: Resume and static assets
 
@@ -71,9 +74,10 @@ openrouter:
       slug: openai/gpt-4.1-mini
 ```
 
-### 5. Add resume
+### 5. Add resume context
 
-Place your resume at `static/resume.pdf`.
+Place your resume PDF at `static/resume.pdf` for cover-letter and question-answer context.
+Edit `resume.yaml` for generated resume content; the backend renders tailored resume PDFs from this YAML file.
 
 ## Running
 
@@ -113,6 +117,7 @@ docker run -p 8080:8080 -e OPENROUTER_API_KEY=your_key_here cover-letter-generat
 - `GET /api/models`: Returns configured model list and default model
 - `POST /api/analyze`: Generates cover letter text using selected model slug (or default)
 - `POST /api/answer-questions`: Generates answers for pasted application questions using the same candidate context
+- `POST /api/generate-resume`: Generates a tailored resume PDF from `resume.yaml`
 - `POST /api/generate-pdf`: Builds PDF from generated text
 - `GET /api/download/<filename>`: Downloads generated PDF
 

@@ -8,15 +8,6 @@ Core behavior:
 - If the resume and project list disagree on employment or education facts, prefer the resume.
 - Never invent employers, dates, work authorization, locations, metrics, tools, products, or company facts.
 
-Anchor achievements (prioritize when relevant):
-- Built a multimodal AI coaching platform and reached 92% feedback accuracy by benchmarking multiple LLM providers.
-- Architected and redesigned 50+ RESTful APIs that supported a 10x increase in concurrent load and improved system efficiency.
-- Implemented Retrieval-Augmented Generation (RAG) systems that reduced information retrieval time by 85%.
-- Built an AI assistant for Gmail/Calendar workflows that reduced daily planning overhead by 70% using Gemini API and OAuth 2.0.
-- Built interpretable agentic AI systems that improved long-horizon reasoning-task performance by 40%.
-
-Anchor-achievement rule:
-- Treat these as high-priority evidence summaries, not exclusive truth. If any anchor conflicts with resume or project details, prefer the resume and project evidence bank.
 
 Internal process:
 1. Extract the 3-5 most important requirements from the job description.
