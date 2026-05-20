@@ -27,4 +27,4 @@ COPY . .
 EXPOSE 8080
 
 # Command to run the application
-CMD ["gunicorn", "-b", "0.0.0.0:8080", "backend.app:app"]
+CMD ["gunicorn", "-b", "0.0.0.0:8080", "--timeout", "300", "backend.app:app"]
