@@ -183,7 +183,9 @@ def generate_resume():
             if compile_result.get('ok'):
                 return jsonify({'resumeFile': compile_result.get('resumeFile')}), 200
 
-            retry_history.append(f"Attempt {attempt} LaTeX compiler error: {compile_result.get('compilerError', '')}")
+            compiler_error = compile_result.get('compilerError', '')
+            logger.error("Resume LaTeX compile failed on attempt %s: %s", attempt, compiler_error[-1500:])
+            retry_history.append(f"Attempt {attempt} LaTeX compiler error: {compiler_error}")
 
         return jsonify({'error': 'Failed to generate a compilable resume after retries.', 'compilerError': retry_history[-1] if retry_history else ''}), 500
     except Exception as e:
