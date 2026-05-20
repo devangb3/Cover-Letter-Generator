@@ -9,6 +9,14 @@ RUN npm run build
 # Stage 2: Set up the Python backend
 FROM python:3.9-slim
 WORKDIR /app
+
+# pdflatex is required for /api/generate-resume (resume PDF compilation)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    texlive-latex-base \
+    texlive-latex-recommended \
+    texlive-fonts-recommended \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /app/frontend/build ./frontend/build
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
