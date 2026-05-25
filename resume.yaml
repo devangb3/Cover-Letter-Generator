@@ -44,6 +44,16 @@ experience:
       - Developed end-to-end AI evaluation infrastructure for agentic systems, using Python APIs, MongoDB persistence, Dockerized execution, and observability workflows for repeatable model-quality measurement.
       - Built an automated prompt optimization pipeline that analyzes agentic traces and iteratively improve prompts, achieving a 6.63% performance lift for conversational agents on MultiChallenge benchmark.
       - Engineered agent harnesses for execution, tool-use tracing, hidden-state management, deterministic grading, and failure analysis across coding, interactive tool-calling and deep research workflows.
+    supporting_projects:
+      - id: pilotcrew-gen-eval
+        title: Agentic Eval Platform
+        url: https://pilotcrew.ai/autoeval/agentic-eval/about
+        description: Built an evaluation platform for testing and improving LLM and agent reliability across structured tasks, coding agents, RAG workflows, tool use, and iterative prompt-optimization loops.
+        technologies: Python, MongoDB, LLM Evaluations, Prompt Optimization, OpenRouter, Observability
+        highlights:
+          - Built repeatable evaluation infrastructure with structured run tracking, artifact export, failure-mode reporting, and observability views for comparing prompt and system changes.
+          - Added runner support across coding, RAG, interactive tool-use, BrowseComp, MultiChallenge, tau2, and SWE-bench style experiments.
+          - Implemented OpenRouter usage and cost tracking plus regression guards such as client-prompt acceptance gates, oracle gates, and gate-skip diagnostics.
   - id: experience_learnhaus_swe_intern
     title: Software Engineer Intern
     organization: LearnHaus AI
@@ -52,6 +62,16 @@ experience:
     bullets:
       - Built a full-stack multimodal AI application (React, Python) from scratch, processing video, audio, and text inputs with optimized latency for real-time user feedback.
       - Developed a LLM-as-Judge evaluation framework using GPT-5 and Gemini-3 to score model outputs across multiple quality dimensions; deployed to Google Cloud Platform(GCP)
+    supporting_projects:
+      - id: lh-multimodal-svc
+        title: Emotion-Aware Feedback System for Public Speaking
+        url: https://multimodal-svc-frontend-277660335430.us-central1.run.app/
+        description: Built a multimodal service that processes video, audio, and transcripts to deliver presentation coaching, emotional analysis, and structured feedback for public speaking improvement.
+        technologies: Python, Hume AI, Multimodal AI, Async Processing, Data Visualization
+        highlights:
+          - Engineered a pipeline for processing video, audio, and text signals into coaching-oriented feedback.
+          - Integrated Hume AI for emotional analysis and built a visualization layer for actionable presentation insights.
+          - Designed LLM-judge style quality control so one model could evaluate another model's responses.
   - id: experience_hexaview_software_engineer
     title: Software Engineer
     organization: Hexaview Technologies

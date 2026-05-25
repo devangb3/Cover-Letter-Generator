@@ -6,7 +6,7 @@ openrouter:
       slug: openai/gpt-5.4-nano
     - label: Gemini Flash
       slug: ~google/gemini-flash-latest
-    - label: Trinity Large Free
-      slug: arcee-ai/trinity-large-preview:free
+    - label: Qwen 3.6 Flash
+      slug: qwen/qwen3.6-flash
     - label: DeepSeek v4 Pro
       slug: deepseek/deepseek-v4-pro

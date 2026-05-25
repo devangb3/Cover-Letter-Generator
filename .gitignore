@@ -10,5 +10,6 @@ pdf_service/build/
 pdf_service/output/
 *.log
 application_test/
+artifacts/
 .cursor/
 .codex

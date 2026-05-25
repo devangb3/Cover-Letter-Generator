@@ -13,7 +13,11 @@ from backend.api_service.model_config import (
     is_allowed_model,
     load_model_config,
 )
-from backend.models.llm_outputs import JobQuestionAnswerResponse, ResumeBulletPatch
+from backend.models.llm_outputs import (
+    FullResumeDraft,
+    JobQuestionAnswerResponse,
+    ResumeBulletPatch,
+)
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -42,6 +46,7 @@ WEB_SEARCH_TOOL = {
         "search_context_size": "low",
     },
 }
+EXPERIENCE_OWNED_PROJECT_IDS = {"pilotcrew-gen-eval", "lh-multimodal-svc"}
 
 def get_pydantic_json_schema(model):
     if hasattr(model, "model_json_schema"):
@@ -61,56 +66,46 @@ def dump_pydantic_model(model_instance):
     return model_instance.dict()
 
 
-def load_projects():
-    """Load projects from constants.js and format them for the prompt."""
+def load_project_catalog():
+    """Load renderable project metadata from projects.json."""
     try:
-        constants_path = os.path.join(
-            ROOT_DIR, "static", "constants.js"
-        )
-        logger.info(f"Loading projects from: {constants_path}")
+        projects_path = os.path.join(ROOT_DIR, "static", "projects.json")
+        logger.info(f"Loading project catalog from: {projects_path}")
 
-        if not os.path.exists(constants_path):
-            logger.error(f"Constants file not found at: {constants_path}")
-            return ""
+        if not os.path.exists(projects_path):
+            logger.error(f"Projects file not found at: {projects_path}")
+            return []
 
-        with open(constants_path, "r", encoding="utf-8") as file:
-            content = file.read()
+        with open(projects_path, "r", encoding="utf-8") as file:
+            projects = json.load(file)
 
-        start_match = re.search(r"export\s+const\s+projects\s*=\s*\[", content, re.DOTALL)
-        if not start_match:
-            logger.warning("Could not find projects array in constants.js")
-            return ""
+        if not isinstance(projects, list):
+            logger.warning("projects.json must contain a top-level array")
+            return []
 
-        start_pos = start_match.end() - 1
-        bracket_count = 0
-        i = start_pos
-
-        while i < len(content):
-            if content[i] == "[":
-                bracket_count += 1
-            elif content[i] == "]":
-                bracket_count -= 1
-                if bracket_count == 0:
-                    array_content = content[start_pos + 1 : i].strip()
-                    break
-            i += 1
-        else:
-            logger.warning("Could not find matching closing bracket for projects array")
-            return ""
-
-        projects_text = "\n\n".join(
-            [
-                "Full project evidence bank:",
-                "Use every project below as candidate evidence. Internally rank the projects against the job description or question, then cite the strongest matching projects in the final answer.",
-                array_content,
-            ]
-        )
-        logger.info(f"Loaded projects, content length: {len(projects_text)}")
-        return projects_text
+        logger.info("Loaded %s projects from projects.json", len(projects))
+        return projects
     except Exception as exc:
-        logger.error(f"Error loading projects: {exc}")
+        logger.error(f"Error loading project catalog: {exc}")
         logger.error(traceback.format_exc())
+        return []
+
+
+def load_projects():
+    """Load projects from projects.json and format them for the prompt."""
+    projects = load_project_catalog()
+    if not projects:
         return ""
+
+    projects_text = "\n\n".join(
+        [
+            "Full project evidence bank:",
+            "Use every project below as candidate evidence. Internally rank the projects against the job description or question, then cite the strongest matching projects in the final answer.",
+            json.dumps(projects, indent=2),
+        ]
+    )
+    logger.info(f"Loaded projects, content length: {len(projects_text)}")
+    return projects_text
 
 
 def load_resume_pdf():
@@ -566,5 +561,124 @@ def generate_resume_bullets(
         raise ValueError(f"Unable to generate valid JSON after retries: {last_error}")
     except Exception as exc:
         logger.error(f"Error generating resume bullets: {exc}")
+        logger.error(traceback.format_exc())
+        return {"error": str(exc), "traceback": traceback.format_exc()}
+
+
+def build_full_resume_project_catalog(resume_data):
+    catalog_by_id = {}
+    for project in resume_data.get("projects", []):
+        project_id = project.get("id")
+        if project_id:
+            catalog_by_id[project_id] = {
+                **project,
+                "description": "",
+                "technologies": [],
+                "highlights": project.get("bullets", []),
+            }
+
+    for project in load_project_catalog():
+        project_id = project.get("id")
+        if project_id in EXPERIENCE_OWNED_PROJECT_IDS:
+            continue
+        if project_id and project_id not in catalog_by_id:
+            catalog_by_id[project_id] = project
+
+    return list(catalog_by_id.values())
+
+
+def generate_full_resume_draft(
+    job_description,
+    company_name,
+    custom_instructions,
+    personal_info,
+    resume_data,
+    project_catalog,
+    model="~google/gemini-flash-latest",
+    retry_history=None,
+):
+    """Generate a full one-page resume draft with mandatory experience and selected projects."""
+    try:
+        mandatory_experience = [
+            {
+                "id": entry.get("id"),
+                "title": entry.get("title"),
+                "organization": entry.get("organization"),
+                "dates": entry.get("dates"),
+                "location": entry.get("location"),
+                "current_bullets": entry.get("bullets", []),
+                "supporting_projects": entry.get("supporting_projects", []),
+            }
+            for entry in resume_data.get("experience", [])
+        ]
+        if not mandatory_experience:
+            raise ValueError("No mandatory experience entries were provided")
+
+        system_instruction = load_instruction("prompts/full_resume_sys.txt")
+        shared_context = build_application_context(
+            job_description,
+            company_name,
+            custom_instructions,
+            personal_info,
+        )
+        response_schema = json.dumps(
+            get_pydantic_json_schema(FullResumeDraft),
+            indent=2,
+        )
+        resume_source = {
+            "profile": resume_data.get("profile", {}),
+            "skills": resume_data.get("skills", []),
+            "education": resume_data.get("education", []),
+            "mandatory_experience": mandatory_experience,
+            "project_catalog": project_catalog,
+        }
+        mandatory_ids = ", ".join(entry["id"] for entry in mandatory_experience if entry.get("id"))
+        base_prompt = "\n\n".join(
+            [
+                f"Target company: {company_name}",
+                "Generate a completely new tailored resume draft.",
+                "The backend will lock the header, education, experience metadata, project metadata, and PDF layout.",
+                f"Mandatory experience ids that must all appear exactly once: {mandatory_ids}.",
+                "Education is always included by the renderer; do not return education.",
+                "Choose exactly 3 projects from the project_catalog unless the retry history asks you to shorten further.",
+                "Use enough supported content to fill a strong one-page resume; avoid sparse drafts.",
+                "Return valid JSON only that conforms to this Pydantic-generated JSON schema:",
+                response_schema,
+                "Resume source data and renderable project catalog:",
+                json.dumps(resume_source, indent=2),
+                "Job Context:",
+                shared_context,
+            ]
+        )
+
+        history = list(retry_history or [])
+        last_error = ""
+        for attempt in range(1, 4):
+            retry_context = ""
+            if history:
+                retry_context = (
+                    "\n\nPrevious attempt history:\n"
+                    + "\n\n".join(history)
+                    + f"\n\nFix this latest error: {last_error}"
+                )
+            response_text = call_openrouter_json(
+                system_instruction,
+                base_prompt + retry_context,
+                model,
+                max_tokens=4200,
+                temperature=0.75,
+                enable_web_search=True,
+            )
+            try:
+                payload = parse_json_response(response_text)
+                draft = validate_pydantic_model(FullResumeDraft, payload)
+                return dump_pydantic_model(draft)
+            except Exception as exc:
+                last_error = f"Full resume draft validation error: {exc}"
+                history.append(f"Attempt {attempt} output: {response_text[:4000]}")
+
+        raise ValueError(f"Unable to generate a valid full resume draft after retries: {last_error}")
+    except Exception as exc:
+        logger.error(f"Error generating full resume draft: {exc}")
         logger.error(traceback.format_exc())
         return {"error": str(exc), "traceback": traceback.format_exc()}

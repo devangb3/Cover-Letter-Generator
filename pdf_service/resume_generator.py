@@ -128,6 +128,74 @@ def apply_bullet_updates(resume_data, bullet_payload):
     return updated_resume
 
 
+def apply_full_resume_draft(resume_data, draft_payload, project_catalog=None):
+    updated_resume = copy.deepcopy(resume_data)
+    mandatory_experience_ids = [entry.get("id") for entry in resume_data.get("experience", []) if entry.get("id")]
+    project_by_id = {}
+    for project in resume_data.get("projects", []):
+        if project.get("id"):
+            project_by_id[project["id"]] = project
+    for project in project_catalog or []:
+        if project.get("id") and project["id"] not in project_by_id:
+            project_by_id[project["id"]] = project
+
+    skills = draft_payload.get("skills")
+    if isinstance(skills, list) and skills:
+        updated_resume["skills"] = [
+            {
+                "category": str(skill.get("category", "")).strip(),
+                "items": str(skill.get("items", "")).strip(),
+            }
+            for skill in skills
+            if isinstance(skill, dict) and str(skill.get("category", "")).strip() and str(skill.get("items", "")).strip()
+        ]
+
+    experience_updates = draft_payload.get("experience") or []
+    experience_by_id = {}
+    for update in experience_updates:
+        if isinstance(update, dict) and update.get("id"):
+            experience_by_id[update["id"]] = [
+                str(bullet).strip()
+                for bullet in update.get("bullets", [])
+                if str(bullet).strip()
+            ]
+
+    missing_experience = [entry_id for entry_id in mandatory_experience_ids if entry_id not in experience_by_id]
+    if missing_experience:
+        raise ValueError(f"Full resume draft missed mandatory experience ids: {', '.join(missing_experience)}")
+
+    for entry in updated_resume.get("experience", []):
+        entry_id = entry.get("id")
+        if entry_id in experience_by_id:
+            entry["bullets"] = experience_by_id[entry_id]
+
+    selected_projects = []
+    seen_project_ids = set()
+    for update in draft_payload.get("projects") or []:
+        if not isinstance(update, dict):
+            continue
+        project_id = update.get("id")
+        if not project_id or project_id in seen_project_ids:
+            continue
+        source_project = project_by_id.get(project_id)
+        if not source_project:
+            raise ValueError(f"Full resume draft referenced unknown project id '{project_id}'")
+        project = copy.deepcopy(source_project)
+        project["bullets"] = [
+            str(bullet).strip()
+            for bullet in update.get("bullets", [])
+            if str(bullet).strip()
+        ]
+        selected_projects.append(project)
+        seen_project_ids.add(project_id)
+
+    if not selected_projects:
+        raise ValueError("Full resume draft did not select any projects")
+    updated_resume["projects"] = selected_projects
+
+    return updated_resume
+
+
 def _line(text=""):
     return f"{text}\n"
 
@@ -340,7 +408,16 @@ def render_tailored_resume_tex(resume_data, bullet_payload):
     return render_resume_tex(apply_bullet_updates(resume_data, bullet_payload))
 
 
-def compile_tex_to_pdf(tex_content: str, company_name: str = ""):
+def render_full_resume_tex(resume_data, draft_payload, project_catalog=None):
+    return render_resume_tex(apply_full_resume_draft(resume_data, draft_payload, project_catalog))
+
+
+def compile_tex_to_pdf(
+    tex_content: str,
+    company_name: str = "",
+    require_single_page: bool = False,
+    min_text_chars: int = 0,
+):
     try:
         work_root = os.path.join(os.path.dirname(__file__), "build")
         os.makedirs(work_root, exist_ok=True)
@@ -370,12 +447,36 @@ def compile_tex_to_pdf(tex_content: str, company_name: str = ""):
             )
             if proc.returncode != 0 or not os.path.exists(os.path.join(td, "resume.pdf")):
                 return {"ok": False, "compilerError": proc.stdout[-3000:]}
+            compiled_pdf_path = os.path.join(td, "resume.pdf")
+            reader = PdfReader(compiled_pdf_path)
+            page_count = len(reader.pages)
+            if require_single_page and page_count > 1:
+                return {
+                    "ok": False,
+                    "pageCount": page_count,
+                    "compilerError": (
+                        f"Compiled resume was {page_count} pages. Shorten the previous JSON draft "
+                        "so the resume fits on exactly one page."
+                    ),
+                }
+            extracted_text = "\n".join(page.extract_text() or "" for page in reader.pages)
+            text_chars = len(extracted_text)
+            if min_text_chars and text_chars < min_text_chars:
+                return {
+                    "ok": False,
+                    "pageCount": page_count,
+                    "textChars": text_chars,
+                    "compilerError": (
+                        f"Compiled resume fit on one page but only used about {text_chars} extracted text characters. "
+                        f"Expand the previous JSON draft toward at least {min_text_chars} extracted text characters while staying on one page."
+                    ),
+                }
             out_dir = os.path.join(os.path.dirname(__file__), "output")
             os.makedirs(out_dir, exist_ok=True)
             filename = _resume_filename(company_name)
             out_path = os.path.join(out_dir, filename)
-            write_first_page_pdf(os.path.join(td, "resume.pdf"), out_path)
-            return {"ok": True, "resumeFile": filename}
+            write_first_page_pdf(compiled_pdf_path, out_path)
+            return {"ok": True, "resumeFile": filename, "pageCount": page_count, "textChars": text_chars}
     except Exception as exc:
         logger.error("Resume compilation failed: %s", exc)
         logger.error(traceback.format_exc())

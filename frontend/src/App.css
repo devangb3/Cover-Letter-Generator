@@ -63,6 +63,61 @@
   overflow: hidden;
 }
 
+.top-warning {
+  position: fixed;
+  top: 66px;
+  left: 50%;
+  z-index: 80;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: min(720px, calc(100vw - 32px));
+  padding: 10px 12px 10px 14px;
+  border: 1px solid rgba(227, 160, 8, 0.45);
+  border-radius: var(--radius-sm);
+  background: #201a0a;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.42);
+  color: #f8e3a1;
+}
+
+.top-warning div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.top-warning strong {
+  font-family: var(--font-heading);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--amber);
+}
+
+.top-warning span {
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.top-warning button {
+  flex-shrink: 0;
+  border: 1px solid rgba(227, 160, 8, 0.42);
+  border-radius: var(--radius-sm);
+  background: rgba(227, 160, 8, 0.12);
+  color: #f8e3a1;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 5px 8px;
+}
+
+.top-warning button:hover {
+  background: rgba(227, 160, 8, 0.2);
+}
+
 /* ─── Header ──────────────────────────────────────── */
 
 .app-header {
@@ -167,6 +222,12 @@
 .header-btn-resume {
   background-color: var(--amber);
   color: var(--amber-text);
+  font-weight: 700;
+}
+
+.header-btn-full-resume {
+  background-color: var(--success);
+  color: #0d1117;
   font-weight: 700;
 }
 
@@ -571,6 +632,11 @@ textarea {
 .header-btn-resume .spinner {
   border-color: rgba(0, 0, 0, 0.15);
   border-top-color: var(--amber-text);
+}
+
+.header-btn-full-resume .spinner {
+  border-color: rgba(0, 0, 0, 0.15);
+  border-top-color: #0d1117;
 }
 
 @keyframes spin {

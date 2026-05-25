@@ -176,6 +176,7 @@ function App() {
   const [error, setError] = useState(null);
   const [apiError, setApiError] = useState(null);
   const [pdfError, setPdfError] = useState(null);
+  const [resumeWarning, setResumeWarning] = useState(null);
   const [questionError, setQuestionError] = useState(null);
   const [personalInfo, setPersonalInfo] = useState(INITIAL_PERSONAL_INFO);
 
@@ -188,6 +189,7 @@ function App() {
   const isAnsweringQuestions = loadingAction === 'question-answers';
   const isDownloadingPdf = loadingAction === 'pdf-download';
   const isGeneratingResume = loadingAction === 'resume-generate';
+  const isGeneratingFullResume = loadingAction === 'full-resume-generate';
   const isBusy = Boolean(loadingAction);
   const hasOutput = coverLetterResult || questionAnswers.length > 0 || generatedResumeFile;
   const hasError = error || apiError || pdfError || questionError;
@@ -263,6 +265,11 @@ function App() {
     return <p>{String(text)}</p>;
   };
 
+  const formatResumeWarning = (warning) => {
+    if (!warning) return '';
+    return String(warning).split('Latest PDF result:')[0].trim();
+  };
+
   const validateSharedFields = () => {
     if (!personalInfo.name || !personalInfo.email || !personalInfo.phone) {
       return 'Please provide your name, email, and phone in Personal Info';
@@ -286,6 +293,7 @@ function App() {
     setError(null);
     setApiError(null);
     setPdfError(null);
+    setResumeWarning(null);
     setQuestionError(null);
   };
 
@@ -376,6 +384,32 @@ function App() {
     }
   };
 
+  const handleGenerateFullResume = async () => {
+    const validationError = validateSharedFields();
+    if (validationError) { setError(validationError); return; }
+    setLoadingAction('full-resume-generate');
+    clearErrors();
+    setGeneratedResumeFile(null);
+    try {
+      const res = await fetch(`${API_URL}/api/generate-full-resume`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildRequestPayload()),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) { setPdfError(data.error || data.compilerError || 'Failed to generate full resume PDF'); return; }
+      if (data.resumeFile) {
+        setGeneratedResumeFile(data.resumeFile);
+        setResumeWarning(data.warning || null);
+        setActiveOutputTab('resume');
+      }
+    } catch (err) {
+      setPdfError(err.message || 'An unexpected error occurred while generating the full resume');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
   const handleDownloadResume = () => {
     if (!generatedResumeFile) return;
     const link = document.createElement('a');
@@ -416,6 +450,15 @@ function App() {
 
   return (
     <div className="app-shell" style={{ cursor: isDragging ? 'col-resize' : undefined, userSelect: isDragging ? 'none' : undefined }}>
+      {resumeWarning && (
+        <div className="top-warning" role="status" aria-live="polite">
+          <div>
+            <strong>Resume warning</strong>
+            <span>{formatResumeWarning(resumeWarning)}</span>
+          </div>
+          <button type="button" onClick={() => setResumeWarning(null)}>Dismiss</button>
+        </div>
+      )}
 
       {/* ── Header ────────────────────────────────── */}
       <header className="app-header">
@@ -452,6 +495,15 @@ function App() {
             title="Generate a tailored resume PDF"
           >
             {isGeneratingResume ? <><Spinner /> Generating…</> : <><DocIcon /> Resume PDF</>}
+          </button>
+          <button
+            type="button"
+            className="header-btn header-btn-full-resume"
+            onClick={handleGenerateFullResume}
+            disabled={isBusy || modelsLoading || !!modelLoadError || !selectedModel}
+            title="Generate a new one-page resume PDF"
+          >
+            {isGeneratingFullResume ? <><Spinner /> Generating…</> : <><DocIcon /> Full Resume</>}
           </button>
         </div>
 
