@@ -5,19 +5,18 @@
     "url": "https://github.com/devangb3/CF-Implementation",
     "url_label": "GitHub",
     "context": "NeurIPS '26 submission",
-    "description": "Built an interventional causal-attribution framework for multi-step LLM agent traces: models execution as a DAG, computes Causal Responsibility Scores (CRS) via step-level interventions and downstream re-execution, and generates minimal contrastive repair pairs usable as DPO post-training data.",
+    "description": "Built an interventional causal-attribution framework for multi-step LLM agent traces: models execution as a DAG, computes Causal Responsibility Scores (CRS) via step-level interventions and re-execution generating minimal contrastive repair pairs usable as DPO post-training data.",
     "technologies": [
       "Python",
       "LLMs",
       "Agentic Frameworks",
       "Debugging",
-      "Synthetic Environments",
-      "Ablation Studies"
+      "Synthetic Environments"
     ],
     "highlights": [
-      "Modeled agent traces as DAGs and computed Causal Responsibility Scores by intervening on candidate steps and re-executing only downstream dependents to identify true failure causes.",
       "Generated minimal contrastive repair pairs across 3,000+ math, code generation, web QA, and medical browsing tasks; repaired 42.7% of failed traces with a median +16.9% post-repair accuracy gain.",
-      "Ran judge-accuracy, minimality, no-gold, and stochasticity ablations to isolate which parts of the attribution-repair loop drive performance gains."
+      "Modeled agent traces as DAGs and computed Causal Responsibility Scores by intervening on candidate steps and re-executing dependents to identify true failure causes.",
+      "Ran judge-accuracy, minimality, no-gold, and stochasticity comparisons to isolate which parts of the attribution-repair loop drive performance gains."
     ]
   },
   {
@@ -79,9 +78,9 @@
       "Benchmarking"
     ],
     "highlights": [
-      "Built Cyber-Bench Web-5 with isolated Docker attacker/target networks, stable gateway URLs, and a deterministic exact-match flag scorer requiring all five CTF services to be solved.",
-      "Built a Memory Vulnerability Benchmark over ARVO dataset tasks that scores binary success by checking /tmp/crash_output.txt for ASAN, MSAN, or UBSan sanitizer signatures.",
-      "Added OpenCode backend support with isolated workspaces, guarded helper commands, and a browser-based transcript viewer for inspecting agent run artifacts."
+      "Built Cyber-Bench Web-5 with isolated Docker attacker/target networks, stable gateway URLs, and a deterministic scorer",
+      "Built a Memory Vulnerability Benchmark over ARVO dataset tasks that scores binary success by checking for ASAN, MSAN, or UBSan sanitizer signatures.",
+      "Added OpenCode harness support with isolated workspaces, guarded helper commands, and a browser-based transcript viewer for inspecting agent run artifacts."
     ]
   },
   {
@@ -90,7 +89,7 @@
     "url": "https://github.com/devangb3/DataScience-Bench",
     "url_label": "GitHub",
     "context": "",
-    "description": "Built a Harbor-compatible terminal benchmark for data-science agents, packaging self-contained analysis tasks with Docker environments, deterministic verification, OpenRouter model runs, and traceable artifacts.",
+    "description": "Built a Harbor-compatible terminal benchmark for data-science agents, packaging self-contained analysis tasks with Docker environments, deterministic verification, and traceable artifacts.",
     "technologies": [
       "Python",
       "Harbor",
@@ -122,8 +121,7 @@
     ],
     "highlights": [
       "Designed a JSON task format supporting table, CSV, image, and text data sources with ground-truth answers, and executed each task in an isolated Jupyter kernel to prevent cross-task contamination.",
-      "Stored per-task artifacts (notebook state, step-by-step trajectory) and top-level run artifacts (transcript, config, result.json, runtime log) under a timestamped jobs/ directory.",
-      "Added configurable --max-workers parallelism and --max-steps budget controls, and packaged the harness with uv and pytest for reproducible local runs."
+      "Added configurable parallelism and budget controls, and packaged the harness with uv and pytest for reproducible local runs."
     ]
   },
   {
@@ -132,7 +130,7 @@
     "url": "https://github.com/devangb3/LLm-Linter",
     "url_label": "GitHub",
     "context": "",
-    "description": "Built a GitHub Action and CLI assistant that analyzes repositories and pull requests with Gemini, parses diffs, and posts automated review summaries directly on PRs and issues.",
+    "description": "Built a GitHub Action assistant that analyzes repositories and pull requests with LLM, parses diffs, and posts automated review summaries directly on PRs and issues.",
     "technologies": [
       "JavaScript",
       "Node.js",
@@ -172,7 +170,7 @@
     "url": "https://github.com/devangb3/Event-Creator",
     "url_label": "GitHub",
     "context": "",
-    "description": "Built a Chrome extension that converts highlighted web text into Google Calendar events: a Manifest V3 service worker handles OAuth token acquisition and Calendar API calls, while an injected content script provides Quick Create and Edit & Create flows with a glassmorphism inline UI.",
+    "description": "Built a Chrome extension that converts highlighted web text into Google Calendar events: a service worker handles OAuth token acquisition and Calendar API calls, while an injected content script provides Quick Create and Edit & Create flows with a glassmorphism inline UI.",
     "technologies": [
       "JavaScript",
       "Chrome Extension",
@@ -183,7 +181,7 @@
     ],
     "highlights": [
       "Built a content script that detects text selection and renders a floating Quick Create / Edit & Create card, communicating with a Manifest V3 service worker via Chrome message passing.",
-      "Implemented on-device Gemini parsing to extract event title, date, time, and location from natural language text with a fallback to basic event creation when no API key is present.",
+      "Implemented on-device LLM parsing to extract event title, date, time, and location from natural language text.",
       "Orchestrated OAuth 2.0 token acquisition via chrome.identity and Google Calendar API calls entirely from the background service worker with no server-side component."
     ]
   },
@@ -477,7 +475,7 @@
       "CI/CD"
     ],
     "highlights": [
-      "Built 7-task daily tracking, water intake tracking (1-gallon goal), and a statistics dashboard with streak calculations using Recharts for visualization.",
+      "Built daily tracking, and a statistics dashboard with streak calculations using Recharts for visualization.",
       "Architected a modular Flask backend with Blueprint-pattern routes, a service layer, and PyMongo persistence; deployed the full stack to Google Cloud Run."
     ]
   },

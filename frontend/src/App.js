@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './App.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://cover-letter-generator-424176252593.us-central1.run.app';
@@ -16,6 +16,14 @@ const INITIAL_PERSONAL_INFO = {
 const DEFAULT_PANEL_WIDTH = 480;
 const MIN_PANEL_WIDTH = 300;
 const MAX_PANEL_WIDTH = 900;
+
+function clampPanelWidth(width, containerWidth = MAX_PANEL_WIDTH + MIN_PANEL_WIDTH) {
+  const maxWidth = Math.max(
+    MIN_PANEL_WIDTH,
+    Math.min(MAX_PANEL_WIDTH, containerWidth - MIN_PANEL_WIDTH)
+  );
+  return Math.max(MIN_PANEL_WIDTH, Math.min(maxWidth, width));
+}
 
 function personalInfoForRequest(personalInfo) {
   const { github: _uiOnly, ...rest } = personalInfo;
@@ -183,7 +191,6 @@ function App() {
   /* Resize state */
   const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
   const [isDragging, setIsDragging] = useState(false);
-  const resizeRef = useRef({ dragging: false, startX: 0, startWidth: 0 });
 
   const isGeneratingCoverLetter = loadingAction === 'cover-letter';
   const isAnsweringQuestions = loadingAction === 'question-answers';
@@ -196,32 +203,32 @@ function App() {
 
   /* ─── Resize drag logic ─────────────────────────── */
 
-  const handleResizeMouseDown = useCallback((e) => {
-    resizeRef.current = { dragging: true, startX: e.clientX, startWidth: panelWidth };
-    setIsDragging(true);
-    e.preventDefault();
-  }, [panelWidth]);
+  const resizePanelFromPointer = (e) => {
+    const container = e.currentTarget.parentElement;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    setPanelWidth(clampPanelWidth(e.clientX - rect.left, rect.width));
+  };
 
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (!resizeRef.current.dragging) return;
-      const delta = e.clientX - resizeRef.current.startX;
-      const newWidth = Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, resizeRef.current.startWidth + delta));
-      setPanelWidth(newWidth);
-    };
-    const handleMouseUp = () => {
-      if (resizeRef.current.dragging) {
-        resizeRef.current.dragging = false;
-        setIsDragging(false);
-      }
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, []);
+  const handleResizePointerDown = (e) => {
+    if (e.button !== 0) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setIsDragging(true);
+    resizePanelFromPointer(e);
+    e.preventDefault();
+  };
+
+  const handleResizePointerMove = (e) => {
+    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+    resizePanelFromPointer(e);
+  };
+
+  const stopResizeDrag = (e) => {
+    if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    setIsDragging(false);
+  };
 
   /* ─── Personal info ─────────────────────────────── */
 
@@ -624,11 +631,19 @@ function App() {
         {/* Drag handle */}
         <div
           className={`resize-handle${isDragging ? ' is-dragging' : ''}`}
-          onMouseDown={handleResizeMouseDown}
-          title="Drag to resize"
+          onPointerDown={handleResizePointerDown}
+          onPointerMove={handleResizePointerMove}
+          onPointerUp={stopResizeDrag}
+          onPointerCancel={stopResizeDrag}
+          onLostPointerCapture={() => setIsDragging(false)}
+          onDoubleClick={() => setPanelWidth(DEFAULT_PANEL_WIDTH)}
+          title="Drag to resize. Double-click to reset."
           aria-label="Resize sidebar"
           role="separator"
           aria-orientation="vertical"
+          aria-valuemin={MIN_PANEL_WIDTH}
+          aria-valuemax={MAX_PANEL_WIDTH}
+          aria-valuenow={panelWidth}
         />
 
         {/* Right: Output Panel */}

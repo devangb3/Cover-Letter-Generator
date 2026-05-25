@@ -515,6 +515,7 @@ textarea {
   transition: background 0.15s;
   z-index: 10;
   user-select: none;
+  touch-action: none;
 }
 
 .resize-handle::after {
