@@ -41,6 +41,14 @@ def sanitize_filename(filename):
         filename = filename[:37]
     return filename
 
+def format_phone_for_cover_letter(phone):
+    digits = re.sub(r"\D", "", phone or "")
+    if len(digits) == 11 and digits.startswith("1"):
+        return f"(+1){digits[1:4]}-{digits[4:7]}-{digits[7:]}"
+    if len(digits) == 10:
+        return f"(+1){digits[:3]}-{digits[3:6]}-{digits[6:]}"
+    return phone
+
 def generate_cover_letter_pdf(data):
     """
     Service function to generate a cover letter PDF directly.
@@ -92,7 +100,7 @@ def generate_cover_letter_pdf(data):
             if personal_info.get('email'):
                 elements.append(Paragraph(personal_info.get('email', ''), styles['Normal']))
             if personal_info.get('phone'):
-                elements.append(Paragraph(personal_info.get('phone', ''), styles['Normal']))
+                elements.append(Paragraph(format_phone_for_cover_letter(personal_info.get('phone', '')), styles['Normal']))
             if personal_info.get('address'):
                 elements.append(Paragraph(personal_info.get('address', ''), styles['Normal']))
             if personal_info.get('linkedin'):
@@ -145,4 +153,3 @@ def generate_cover_letter_pdf(data):
         logger.error(f"Error generating cover letter PDF: {str(e)}")
         logger.error(traceback.format_exc())
         raise
-
