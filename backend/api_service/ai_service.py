@@ -199,6 +199,26 @@ def build_resume_data_url():
     return f"data:application/pdf;base64,{resume_data_b64}"
 
 
+def build_file_data_url(file_path, mime_type):
+    with open(file_path, "rb") as file:
+        encoded_file = base64.b64encode(file.read()).decode("utf-8")
+    return f"data:{mime_type};base64,{encoded_file}"
+
+
+def _openrouter_headers():
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    http_referer = os.environ.get("OPENROUTER_HTTP_REFERER")
+    app_title = os.environ.get("OPENROUTER_APP_TITLE")
+    if http_referer:
+        headers["HTTP-Referer"] = http_referer
+    if app_title:
+        headers["X-Title"] = app_title
+    return headers
+
+
 def call_openrouter(system_instruction, prompt, selected_model, enable_web_search=False):
     if not OPENROUTER_API_KEY:
         raise RuntimeError("OPENROUTER_API_KEY not configured")
@@ -228,16 +248,7 @@ def call_openrouter(system_instruction, prompt, selected_model, enable_web_searc
     if enable_web_search:
         payload["tools"] = [WEB_SEARCH_TOOL]
 
-    headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type": "application/json",
-    }
-    http_referer = os.environ.get("OPENROUTER_HTTP_REFERER")
-    app_title = os.environ.get("OPENROUTER_APP_TITLE")
-    if http_referer:
-        headers["HTTP-Referer"] = http_referer
-    if app_title:
-        headers["X-Title"] = app_title
+    headers = _openrouter_headers()
 
     endpoint = f"{get_base_url().rstrip('/')}/chat/completions"
     logger.info(f"Calling OpenRouter chat completions at: {endpoint}")
@@ -285,14 +296,80 @@ def call_openrouter_json(
     if enable_web_search:
         payload["tools"] = [WEB_SEARCH_TOOL]
 
-    headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type": "application/json",
-    }
+    headers = _openrouter_headers()
     endpoint = f"{get_base_url().rstrip('/')}/chat/completions"
     response = httpx.post(endpoint, headers=headers, json=payload, timeout=120.0)
     if response.status_code >= 400:
         raise RuntimeError(f"OpenRouter API request failed with status {response.status_code}")
+
+    response_data = response.json()
+    choices = response_data.get("choices") or []
+    if not choices:
+        raise RuntimeError("OpenRouter response did not include any choices")
+
+    message = choices[0].get("message", {})
+    response_text = parse_openrouter_content(message.get("content"))
+    if not response_text:
+        raise RuntimeError("No response text received from OpenRouter")
+    return response_text
+
+
+def critique_resume_render(
+    critique_prompt,
+    selected_model,
+    pdf_path="",
+    image_path="",
+    max_tokens=700,
+):
+    """Ask OpenRouter for a compact critique of a rendered resume attempt."""
+    if not OPENROUTER_API_KEY:
+        raise RuntimeError("OPENROUTER_API_KEY not configured")
+
+    if not is_allowed_model(selected_model):
+        raise ValueError(f"Model '{selected_model}' is not allowed by server configuration")
+
+    content = [{"type": "text", "text": critique_prompt}]
+
+    if image_path and os.path.exists(image_path):
+        content.append(
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": build_file_data_url(image_path, "image/png"),
+                },
+            }
+        )
+
+    payload = {
+        "model": selected_model,
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "You are a strict resume layout reviewer. Return concise, actionable feedback "
+                    "for the next JSON resume draft only. Do not rewrite the whole resume."
+                ),
+            },
+            {"role": "user", "content": content},
+        ],
+        "max_tokens": max_tokens,
+        "temperature": 0.1,
+    }
+
+
+    endpoint = f"{get_base_url().rstrip('/')}/chat/completions"
+    response = httpx.post(endpoint, headers=_openrouter_headers(), json=payload, timeout=120.0)
+    if response.status_code >= 400 and image_path:
+        logger.warning("Resume visual critique with image failed; retrying with PDF/text only: %s", response.text)
+        return critique_resume_render(
+            critique_prompt,
+            selected_model,
+            pdf_path=pdf_path,
+            image_path="",
+            max_tokens=max_tokens,
+        )
+    if response.status_code >= 400:
+        raise RuntimeError(f"OpenRouter resume critique failed with status {response.status_code}: {response.text}")
 
     response_data = response.json()
     choices = response_data.get("choices") or []
@@ -595,7 +672,6 @@ def generate_full_resume_draft(
     resume_data,
     project_catalog,
     model="~google/gemini-flash-latest",
-    retry_history=None,
 ):
     """Generate a full one-page resume draft with mandatory experience and selected projects."""
     try:
@@ -640,7 +716,7 @@ def generate_full_resume_draft(
                 "The backend will lock the header, education, experience metadata, project metadata, and PDF layout.",
                 f"Mandatory experience ids that must all appear exactly once: {mandatory_ids}.",
                 "Education is always included by the renderer; do not return education.",
-                "Choose exactly 3 projects from the project_catalog unless the retry history asks you to shorten further.",
+                "Choose exactly 3 projects from the project_catalog.",
                 "Use enough supported content to fill a strong one-page resume; avoid sparse drafts.",
                 "Return valid JSON only that conforms to this Pydantic-generated JSON schema:",
                 response_schema,
@@ -651,7 +727,7 @@ def generate_full_resume_draft(
             ]
         )
 
-        history = list(retry_history or [])
+        history = []
         last_error = ""
         for attempt in range(1, 4):
             retry_context = ""
