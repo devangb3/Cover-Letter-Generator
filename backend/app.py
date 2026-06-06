@@ -23,7 +23,6 @@ from pdf_service.resume_generator import (
     load_resume_yaml,
     render_full_resume_tex,
     render_tailored_resume_tex,
-    trim_full_resume_draft_tail_sentence,
 )
 
 logging.basicConfig(
@@ -42,7 +41,6 @@ def json_dumps_for_prompt(payload, limit=6000):
     if len(rendered) > limit:
         return rendered[:limit] + "\n...[truncated]"
     return rendered
-
 
 app = Flask(__name__, static_folder='../frontend/build')
 CORS(app)
@@ -223,64 +221,125 @@ def generate_full_resume():
         resume_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'resume.yaml')
         resume_data = load_resume_yaml(resume_path)
         project_catalog = build_full_resume_project_catalog(resume_data)
-        draft_payload = generate_full_resume_draft(
-            job_description,
-            company_name,
-            custom_instructions,
-            personal_info,
-            resume_data,
-            project_catalog,
-            model,
-        )
-        if 'error' in draft_payload:
-            return jsonify(draft_payload), 500
+        retry_history = []
+        for attempt in range(1, 4):
+            draft_payload = generate_full_resume_draft(
+                job_description,
+                company_name,
+                custom_instructions,
+                personal_info,
+                resume_data,
+                project_catalog,
+                model,
+                retry_history=retry_history,
+            )
+            if 'error' in draft_payload:
+                return jsonify(draft_payload), 500
 
-        diagnostics_dir = os.path.join(
-            os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')),
-            'artifacts',
-            'resume_attempts',
-        )
-        max_trim_attempts = 30
-        latest_error = ''
-        for trim_attempt in range(max_trim_attempts + 1):
             try:
                 tex_content = render_full_resume_tex(resume_data, draft_payload, project_catalog)
             except Exception as render_error:
-                logger.error("Full resume render failed after %s tail trims: %s", trim_attempt, render_error)
-                return jsonify({
-                    'error': 'Failed to render the generated full resume.',
-                    'compilerError': str(render_error),
-                }), 500
+                logger.error("Full resume render failed on attempt %s: %s", attempt, render_error)
+                retry_history.append(
+                    "\n".join(
+                        [
+                            f"Attempt {attempt} previous JSON draft:",
+                            json_dumps_for_prompt(draft_payload),
+                            f"Attempt {attempt} render error: {render_error}",
+                            "Fix the JSON structure while keeping PilotCrew AI, LearnHaus AI, Hexaview Technologies, and education.",
+                        ]
+                    )
+                )
+                continue
 
             compile_result = compile_tex_to_pdf(
                 tex_content,
                 company_name=company_name,
                 require_single_page=True,
-                min_text_chars=0,
-                diagnostics_dir=diagnostics_dir,
-                diagnostics_label=f"{(company_name.strip() if company_name else 'resume')}_trim_{trim_attempt}",
+                min_text_chars=3600,
             )
             if compile_result.get('ok'):
                 return jsonify({'resumeFile': compile_result.get('resumeFile')}), 200
 
             compiler_error = compile_result.get('compilerError', '')
-            latest_error = compiler_error
-            logger.error("Full resume PDF failed after %s tail trims: %s", trim_attempt, compiler_error[-1500:])
+            logger.error("Full resume PDF failed on attempt %s: %s", attempt, compiler_error[-1500:])
+            if attempt == 3 and compile_result.get('pageCount', 1) > 1:
+                fallback_result = compile_tex_to_pdf(
+                    tex_content,
+                    company_name=company_name,
+                    require_single_page=False,
+                    min_text_chars=0,
+                )
+                if fallback_result.get('ok'):
+                    logger.warning(
+                        "Returning best-effort first-page resume after final full-resume attempt: %s",
+                        compiler_error[-1500:],
+                    )
+                    return jsonify({
+                        'resumeFile': fallback_result.get('resumeFile'),
+                        'warning': (
+                            "Generated a first-page fallback after 3 attempts. "
+                            f"Latest PDF result: {compiler_error}"
+                        ),
+                    }), 200
+            if attempt == 3 and compile_result.get('textChars'):
+                fallback_result = compile_tex_to_pdf(
+                    tex_content,
+                    company_name=company_name,
+                    require_single_page=True,
+                    min_text_chars=0,
+                )
+                if fallback_result.get('ok'):
+                    logger.warning(
+                        "Returning sparse one-page resume after final full-resume attempt: %s",
+                        compiler_error[-1500:],
+                    )
+                    return jsonify({'resumeFile': fallback_result.get('resumeFile')}), 200
 
-            if compile_result.get('pageCount', 1) <= 1:
-                return jsonify({
-                    'error': 'Failed to generate a valid full resume PDF.',
-                    'compilerError': compiler_error,
-                }), 500
+            if compile_result.get('pageCount', 1) > 1:
+                if attempt == 1:
+                    retry_instruction = (
+                        "The previous draft was too long. Keep the same strong structure, but make each bullet "
+                        "shorter and denser: keep 5 skill groups, keep PilotCrew AI, LearnHaus AI, Hexaview "
+                        "Technologies, and education, keep 3 projects if possible, and target 1-line bullets. "
+                        "Do not drop to a sparse resume."
+                    )
+                elif attempt == 2:
+                    retry_instruction = (
+                        "The previous draft is still too long. Compress moderately: use 4-5 skill groups, keep "
+                        "2 bullets for PilotCrew AI, keep 2 bullets for LearnHaus AI if possible, keep 2 bullets "
+                        "for Hexaview Technologies if possible, and choose 2-3 projects with compact 1-line bullets. "
+                        "Avoid reducing LearnHaus and Hexaview to 1 bullet unless absolutely necessary."
+                    )
+                else:
+                    retry_instruction = (
+                        "The previous draft was too long. Make the smallest needed cuts while preserving substance: "
+                        "keep PilotCrew AI, LearnHaus AI, Hexaview Technologies, education, and at least 2 projects. "
+                        "Use compact 1-line bullets, but do not create a visibly sparse resume."
+                    )
+            elif compile_result.get('textChars'):
+                retry_instruction = (
+                    "The previous draft fit on one page but was too sparse. Expand it with stronger supported "
+                    "content while staying on one page: prefer 5 skill groups, 2 bullets for each experience entry, "
+                    "and 3 projects when possible. Keep bullets compact and evidence-backed."
+                )
+            else:
+                retry_instruction = (
+                    "Revise the same resume based on the PDF result. Keep PilotCrew AI, LearnHaus AI, "
+                    "Hexaview Technologies, and education."
+                )
+            retry_history.append(
+                "\n".join(
+                    [
+                        f"Attempt {attempt} previous JSON draft:",
+                        json_dumps_for_prompt(draft_payload),
+                        f"Attempt {attempt} PDF result: {compiler_error}",
+                        retry_instruction,
+                    ]
+                )
+            )
 
-            draft_payload, did_trim = trim_full_resume_draft_tail_sentence(draft_payload)
-            if not did_trim:
-                break
-
-        return jsonify({
-            'error': 'Failed to trim the generated full resume to one page.',
-            'compilerError': latest_error,
-        }), 500
+        return jsonify({'error': 'Failed to generate a one-page full resume after retries.', 'compilerError': retry_history[-1] if retry_history else ''}), 500
     except Exception as e:
         logger.error(f"Error in generate_full_resume: {str(e)}")
         logger.error(traceback.format_exc())
