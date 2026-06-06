@@ -55,6 +55,101 @@ def write_first_page_pdf(source_path: str, out_path: str):
         writer.write(output_file)
 
 
+def _extract_layout_text(pdf_path: str) -> str:
+    if shutil.which("pdftotext"):
+        try:
+            proc = subprocess.run(
+                ["pdftotext", "-layout", pdf_path, "-"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                timeout=10,
+            )
+            if proc.returncode == 0 and proc.stdout.strip():
+                return proc.stdout
+        except Exception as exc:
+            logger.warning("Unable to extract resume layout text with pdftotext: %s", exc)
+
+    try:
+        reader = PdfReader(pdf_path)
+        return "\n".join(page.extract_text() or "" for page in reader.pages)
+    except Exception as exc:
+        logger.warning("Unable to extract resume text with pypdf: %s", exc)
+        return ""
+
+
+def _skill_layout_warnings(layout_text: str) -> list[str]:
+    lines = layout_text.splitlines()
+    start_index = None
+    end_index = None
+    for index, line in enumerate(lines):
+        if line.strip() == "Skills":
+            start_index = index
+            continue
+        if start_index is not None and line.strip() == "Education":
+            end_index = index
+            break
+
+    if start_index is None or end_index is None or end_index <= start_index:
+        return []
+
+    skill_lines = [line for line in lines[start_index + 1 : end_index] if line.strip()]
+    continuation_lines = []
+    for line in skill_lines:
+        stripped = line.strip()
+        starts_bullet = stripped.startswith(("-", "*", "\u2022"))
+        has_category = ":" in stripped.split(",", 1)[0]
+        if not starts_bullet and not has_category:
+            continuation_lines.append(stripped)
+
+    warnings = []
+    if len(skill_lines) > 7 or len(continuation_lines) > 1:
+        warnings.append(
+            "Skills section rendered as "
+            f"{len(skill_lines)} lines with {len(continuation_lines)} wrapped continuation lines. "
+            "Compress skills to fewer groups and shorter comma-separated items so the section does not spill."
+        )
+    return warnings
+
+
+def detect_resume_layout_warnings(pdf_path: str, page_count: int, text_chars: int) -> tuple[list[str], str]:
+    layout_text = _extract_layout_text(pdf_path)
+    warnings = []
+    if page_count > 1:
+        warnings.append(
+            f"Compiled resume rendered to {page_count} pages. Tail content must be trimmed before returning a one-page PDF."
+        )
+    if text_chars > 4300:
+        warnings.append(
+            f"Resume has about {text_chars} extracted text characters, which is likely too dense for the current layout."
+        )
+    warnings.extend(_skill_layout_warnings(layout_text))
+    return warnings, layout_text
+
+
+def render_pdf_first_page_image(pdf_path: str, output_dir: str, label: str) -> str:
+    if not shutil.which("pdftoppm"):
+        return ""
+
+    os.makedirs(output_dir, exist_ok=True)
+    safe_label = sanitize_filename_part(label) or "resume_attempt"
+    output_base = os.path.join(output_dir, safe_label)
+    image_path = f"{output_base}.png"
+    try:
+        subprocess.run(
+            ["pdftoppm", "-png", "-singlefile", "-r", "120", pdf_path, output_base],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=20,
+            check=True,
+        )
+    except Exception as exc:
+        logger.warning("Unable to render resume PDF preview image: %s", exc)
+        return ""
+    return image_path if os.path.exists(image_path) else ""
+
+
 def load_resume_yaml(resume_path: str):
     with open(resume_path, "r", encoding="utf-8") as file:
         resume_data = yaml.safe_load(file) or {}
@@ -194,6 +289,79 @@ def apply_full_resume_draft(resume_data, draft_payload, project_catalog=None):
     updated_resume["projects"] = selected_projects
 
     return updated_resume
+
+
+def _remove_last_sentence(text: str) -> str:
+    value = str(text or "").strip()
+    if not value:
+        return ""
+
+    sentences = [part.strip() for part in re.split(r"(?<=[.!?])\s+", value) if part.strip()]
+    if len(sentences) > 1:
+        return " ".join(sentences[:-1])
+    return ""
+
+
+def _trim_entry_tail_sentence(entries, entry_index: int, remove_empty_entry: bool = False) -> bool:
+    entry = entries[entry_index]
+    bullets = entry.get("bullets")
+    if not isinstance(bullets, list):
+        return False
+
+    for bullet_index in range(len(bullets) - 1, -1, -1):
+        current_bullet = str(bullets[bullet_index] or "").strip()
+        if not current_bullet:
+            if len(bullets) > 1:
+                del bullets[bullet_index]
+                return True
+            continue
+
+        trimmed_bullet = _remove_last_sentence(current_bullet)
+        if trimmed_bullet:
+            bullets[bullet_index] = trimmed_bullet
+            return True
+
+        if len(bullets) > 1:
+            del bullets[bullet_index]
+            return True
+
+        if remove_empty_entry and len(entries) > 1:
+            del entries[entry_index]
+            return True
+
+    return False
+
+
+def trim_full_resume_draft_tail_sentence(draft_payload):
+    trimmed_payload = copy.deepcopy(draft_payload)
+
+    projects = trimmed_payload.get("projects")
+    if isinstance(projects, list):
+        for entry_index in range(len(projects) - 1, -1, -1):
+            if _trim_entry_tail_sentence(projects, entry_index, remove_empty_entry=True):
+                return trimmed_payload, True
+
+    experience = trimmed_payload.get("experience")
+    if isinstance(experience, list):
+        for entry_index in range(len(experience) - 1, -1, -1):
+            if _trim_entry_tail_sentence(experience, entry_index):
+                return trimmed_payload, True
+
+    skills = trimmed_payload.get("skills")
+    if isinstance(skills, list):
+        for skill_index in range(len(skills) - 1, -1, -1):
+            skill = skills[skill_index]
+            if not isinstance(skill, dict):
+                continue
+            items = [item.strip() for item in str(skill.get("items") or "").split(",") if item.strip()]
+            if len(items) > 1:
+                skill["items"] = ", ".join(items[:-1])
+                return trimmed_payload, True
+            if len(items) == 1 and len(skills) > 1:
+                del skills[skill_index]
+                return trimmed_payload, True
+
+    return trimmed_payload, False
 
 
 def _line(text=""):
@@ -417,6 +585,9 @@ def compile_tex_to_pdf(
     company_name: str = "",
     require_single_page: bool = False,
     min_text_chars: int = 0,
+    fail_on_layout_warnings: bool = False,
+    diagnostics_dir: str = "",
+    diagnostics_label: str = "",
 ):
     try:
         work_root = os.path.join(os.path.dirname(__file__), "build")
@@ -450,33 +621,69 @@ def compile_tex_to_pdf(
             compiled_pdf_path = os.path.join(td, "resume.pdf")
             reader = PdfReader(compiled_pdf_path)
             page_count = len(reader.pages)
+            extracted_text = "\n".join(page.extract_text() or "" for page in reader.pages)
+            text_chars = len(extracted_text)
+            diagnostic_pdf = ""
+            if diagnostics_dir:
+                os.makedirs(diagnostics_dir, exist_ok=True)
+                safe_label = sanitize_filename_part(diagnostics_label) or "resume_attempt"
+                diagnostic_pdf = os.path.join(diagnostics_dir, f"{safe_label}.pdf")
+                shutil.copyfile(compiled_pdf_path, diagnostic_pdf)
+
+            layout_warnings, layout_text = detect_resume_layout_warnings(compiled_pdf_path, page_count, text_chars)
             if require_single_page and page_count > 1:
                 return {
                     "ok": False,
                     "pageCount": page_count,
+                    "textChars": text_chars,
+                    "diagnosticPdf": diagnostic_pdf,
+                    "layoutWarnings": layout_warnings,
+                    "layoutText": layout_text,
                     "compilerError": (
-                        f"Compiled resume was {page_count} pages. Shorten the previous JSON draft "
-                        "so the resume fits on exactly one page."
+                        f"Compiled resume was {page_count} pages. Tail content must be trimmed "
+                        "before returning a one-page PDF."
                     ),
                 }
-            extracted_text = "\n".join(page.extract_text() or "" for page in reader.pages)
-            text_chars = len(extracted_text)
             if min_text_chars and text_chars < min_text_chars:
                 return {
                     "ok": False,
                     "pageCount": page_count,
                     "textChars": text_chars,
+                    "diagnosticPdf": diagnostic_pdf,
+                    "layoutWarnings": layout_warnings,
+                    "layoutText": layout_text,
                     "compilerError": (
                         f"Compiled resume fit on one page but only used about {text_chars} extracted text characters. "
                         f"Expand the previous JSON draft toward at least {min_text_chars} extracted text characters while staying on one page."
                     ),
+                }
+            blocking_layout_warnings = [
+                warning
+                for warning in layout_warnings
+                if "Skills section rendered" in warning
+            ]
+            if fail_on_layout_warnings and blocking_layout_warnings:
+                return {
+                    "ok": False,
+                    "pageCount": page_count,
+                    "textChars": text_chars,
+                    "diagnosticPdf": diagnostic_pdf,
+                    "layoutWarnings": layout_warnings,
+                    "layoutText": layout_text,
+                    "compilerError": "Rendered resume has layout problems: " + " ".join(blocking_layout_warnings),
                 }
             out_dir = os.path.join(os.path.dirname(__file__), "output")
             os.makedirs(out_dir, exist_ok=True)
             filename = _resume_filename(company_name)
             out_path = os.path.join(out_dir, filename)
             write_first_page_pdf(compiled_pdf_path, out_path)
-            return {"ok": True, "resumeFile": filename, "pageCount": page_count, "textChars": text_chars}
+            return {
+                "ok": True,
+                "resumeFile": filename,
+                "pageCount": page_count,
+                "textChars": text_chars,
+                "layoutWarnings": layout_warnings,
+            }
     except Exception as exc:
         logger.error("Resume compilation failed: %s", exc)
         logger.error(traceback.format_exc())
