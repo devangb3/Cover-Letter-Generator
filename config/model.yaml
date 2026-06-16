@@ -8,5 +8,5 @@ openrouter:
       slug: ~google/gemini-flash-latest
     - label: Qwen 3.6 Flash
       slug: qwen/qwen3.6-flash
-    - label: DeepSeek v4 Pro
-      slug: deepseek/deepseek-v4-pro
+    - label: GLM 5.2
+      slug: z-ai/glm-5.2
