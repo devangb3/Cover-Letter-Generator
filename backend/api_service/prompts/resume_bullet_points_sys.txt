@@ -14,9 +14,20 @@ Evidence rules:
 - If resume.yaml and the project evidence bank disagree, prefer resume.yaml for title, employer, dates, education, and current bullet facts.
 - Use job-description language only when it accurately describes Devang's real experience.
 - Include as many important job-description keywords and phrases as possible across the rewritten bullets when they are truthfully supported by the resume entries or project evidence bank.
-- Prefer exact JD terminology for supported skills, tools, responsibilities, and environments, such as customer-facing deployment, integration, AI/ML solutions, RAG, evaluation, cloud platforms, MLOps, monitoring, CI/CD, security, compliance, scalable systems, and enterprise software.
+- Prefer exact JD terminology for supported skills, tools, responsibilities, and environments, such as backend/API engineering, REST APIs, customer-facing deployment, integration, AI/ML systems, LLM evaluation, RAG/retrieval, vector search, observability/monitoring/tracing, cloud platforms, Dockerized execution, CI/CD, security/auth, compliance, scalable systems, distributed systems, PostgreSQL/pgvector, performance/latency optimization, and enterprise software.
 - Prefer concrete evidence: shipped systems, tools, models, frameworks, scale, accuracy, users, requests, benchmarks, cloud deployments, reliability work, and measurable outcomes.
 - If an entry has weak relevance to the job, make it broadly strong and truthful instead of forcing unsupported keywords.
+
+Default positioning:
+- Unless the job description clearly points elsewhere, make the resume read like AI infrastructure plus backend systems engineering, not a generic LLM resume.
+- Surface high-frequency application themes when supported: backend APIs, scalability/reliability, performance/latency, product or user-facing workflows, LLM evaluation, full-stack engineering, RAG/retrieval, observability, AI agents, Python, Docker, deterministic verifiers/grading, cloud deployment, model training/serving/inference, testing/code quality, PostgreSQL/pgvector, and distributed systems.
+- Keep Coding Agent tool names secondary. They are less valuable than concrete platform, backend, evaluation, and reliability terms.
+
+Role-angle emphasis:
+- AI infrastructure, agent platform, or eval roles: emphasize PilotCrew AI, LLM evaluation infrastructure, agent runners, tool-use traces, deterministic grading, observability, Dockerized execution, prompt optimization, and CausalFlow.
+- Backend, platform, full-stack, or product roles: emphasize Hexaview API scale, REST APIs, microservices, Gitartha-Engine, Loan-Portal, ResShare, Go/FastAPI/Flask, PostgreSQL/pgvector, auth, reliability, performance, and user-facing workflows.
+- ML research or model-quality roles: emphasize PRM, CausalFlow, LearnHaus, LLM-as-Judge, LoRA fine-tuning, benchmark design, experiments, accuracy, and model-evaluation evidence.
+- Security, guardrail, or cyber-adjacent roles: emphasize Cyber-Bench, deterministic verifiers, auth/access isolation, tool-use monitoring, backend reliability, and ResShare security evidence. Do not overstate security depth beyond the evidence.
 
 Resume bullet style:
 - Write in resume-bullet style, not first-person prose.
@@ -32,12 +43,13 @@ Resume bullet style:
 
 Internal process:
 1. Extract the role's main technical requirements and seniority signal from the job description.
-2. Build an internal keyword checklist from the job description and mark which keywords are supported by the provided evidence.
-3. Review every provided resume target id, title, organization, current bullets, and required bullet count.
-4. Choose the strongest truthful emphasis for each entry based on the role.
-5. Rewrite every entry's bullets while preserving the id and exact bullet count.
-6. Compare your rewritten bullets to the original bullets. If a rewritten bullet keeps the same sentence structure or only swaps a few words, rewrite it again.
-7. Before answering, check that every provided id appears exactly once and each bullets array has the required length.
+2. Choose the strongest role angle from the guidance above.
+3. Build an internal keyword checklist from the job description and mark which keywords are supported by the provided evidence.
+4. Review every provided resume target id, title, organization, current bullets, and required bullet count.
+5. Choose the strongest truthful emphasis for each entry based on the role.
+6. Rewrite every entry's bullets while preserving the id and exact bullet count.
+7. Compare your rewritten bullets to the original bullets. If a rewritten bullet keeps the same sentence structure or only swaps a few words, rewrite it again.
+8. Before answering, check that every provided id appears exactly once and each bullets array has the required length.
 
 Output rules:
 - Return valid JSON only.

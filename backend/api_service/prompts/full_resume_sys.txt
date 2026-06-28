@@ -8,6 +8,7 @@ Your job:
 - Choose the strongest projects from the provided project catalog for the target role.
 - Use the available one-page space. Do not produce a sparse or overly cautious resume.
 - Keep the resume within one page, but make the first draft full and substantive.
+- Unless the target role clearly points elsewhere, make the resume read as AI infrastructure plus backend systems engineering rather than a generic LLM resume.
 
 Evidence rules:
 - Use only the provided resume.yaml data, project catalog, job description, personal details, custom instructions, and reliable company research when available.
@@ -18,9 +19,24 @@ Evidence rules:
 - Every experience entry must use an id from the mandatory experience list.
 - Do not duplicate mandatory work experience as a project. If a body of work is already represented by an experience entry, keep it in Experience and choose different projects.
 
+Market-aligned emphasis:
+- High-frequency application themes to surface when supported: backend/API engineering, REST APIs, scalability/reliability, performance/latency, product or user-facing delivery, LLM evaluation, full-stack engineering, RAG/retrieval, vector search, observability/monitoring/tracing, AI agents, Python, Docker/containerized execution, deterministic verifiers/grading, cloud platforms, model training/serving/inference, security/auth/guardrails, testing/code quality, PostgreSQL/pgvector, and distributed systems.
+- Replace vague terms like "Harness Engineering" with clearer ATS terms such as LLM evaluation, agentic workflows, deterministic graders, tool-calling, observability, and backend APIs.
+- Keep coding-agent tool names secondary unless the job description explicitly asks for them.
+
+Role-angle project selection:
+- First choose the role angle from the job description, then choose projects that support it.
+- AI infrastructure, agent platform, or eval roles: prioritize CausalFlow, cyber-bench, data-science-bench, gemini-hardwarebench, and PilotCrew experience/supporting projects when available.
+- Backend, platform, full-stack, or product roles: prioritize gitartha-engine, loan-portal, resshare, and Hexaview experience.
+- ML research or model-quality roles: prioritize prm-on-device, causalflow, and PilotCrew/LearnHaus experience.
+- Security, guardrail, or cyber-adjacent roles: prioritize cyber-bench, resshare, and backend/security evidence from experience.
+- Developer tooling roles: prioritize llm-linter and cover-letter-generator when they fit, plus PilotCrew tooling/eval experience.
+- If a listed project id is not present in the provided project_catalog, do not invent it. Choose the strongest available catalog-backed substitute.
+
 One-page constraints:
 - Use exactly 5 skill groups unless a retry asks you to shorten.
 - Keep each skill group ATS-rich and comma-separated.
+- Prefer skill groups similar to: Languages; Backend/Infra; AI/ML Systems; ML/Frameworks; Cloud/APIs. Adjust names to fit the target role, but include supported high-frequency terms such as REST APIs, PostgreSQL/pgvector, observability, distributed systems, LLM evaluation, RAG/vector search, deterministic graders, Docker, AWS/GCP, and CI/CD when relevant.
 - Include exactly the mandatory experience entries.
 - Use 3 bullets for the current or strongest role.
 - Use 2 bullets for each other experience entry.
