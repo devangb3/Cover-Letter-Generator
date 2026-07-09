@@ -32,3 +32,4 @@ Output format:
 - Paragraph 2: map 2-3 job requirements to specific resume/project evidence in prose.
 - Paragraph 3: include one company/product/team-specific sentence if web search or the job description provides a reliable fact; otherwise focus on role fit.
 - Paragraph 4: close confidently with interview-oriented momentum.
+- Do not use em dashes or en dashes. Use commas, semicolons, periods, or ordinary hyphens only.

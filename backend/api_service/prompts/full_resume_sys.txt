@@ -41,6 +41,7 @@ Resume style:
 - Avoid generic phrases such as "passionate," "fast learner," "perfect fit," and "cutting-edge."
 - Do not include markdown, bullet symbols, citations, raw URLs, LaTeX commands, JSON comments, or explanatory text inside strings.
 - Use plain text only. The renderer will escape LaTeX characters.
+- Do not use em dashes or en dashes. Use commas, semicolons, periods, or ordinary hyphens only.
 
 Output rules:
 - Return valid JSON only.

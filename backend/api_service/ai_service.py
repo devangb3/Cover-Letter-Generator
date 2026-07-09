@@ -341,12 +341,31 @@ def parse_json_response(response_text):
         return json.loads(match.group(0))
 
 
-EM_DASH = "\u2014"
+UNICODE_DASH_CHARS = "\u2013\u2014\u2015"
+SPACED_UNICODE_DASH_RE = re.compile(f"[ \t]+[{UNICODE_DASH_CHARS}][ \t]+")
+UNICODE_DASH_RE = re.compile(f"[{UNICODE_DASH_CHARS}]")
+
+
+def normalize_generated_text(value):
+    """Normalize user-facing model output before display or PDF rendering."""
+    if isinstance(value, str):
+        normalized = SPACED_UNICODE_DASH_RE.sub("; ", value)
+        normalized = UNICODE_DASH_RE.sub("-", normalized)
+        normalized = re.sub(r"[ \t]{2,}", " ", normalized)
+        return normalized.strip()
+
+    if isinstance(value, list):
+        return [normalize_generated_text(item) for item in value]
+
+    if isinstance(value, dict):
+        return {key: normalize_generated_text(item) for key, item in value.items()}
+
+    return value
 
 
 def strip_em_dashes(text: str) -> str:
-    """Remove em dashes from model output (post-processing validation)."""
-    return text.replace(EM_DASH, "")
+    """Backward-compatible wrapper for existing question answer cleanup."""
+    return normalize_generated_text(text)
 
 
 def normalize_question_answers(response_payload, original_questions):
@@ -409,7 +428,7 @@ def generate_cover_letter(job_description, company_name, custom_instructions, pe
             enable_web_search=True,
         )
         return {
-            "coverLetter": cover_letter_text,
+            "coverLetter": normalize_generated_text(cover_letter_text),
             "personalInfo": personal_info,
             "companyName": company_name,
         }
@@ -672,7 +691,7 @@ def generate_full_resume_draft(
             try:
                 payload = parse_json_response(response_text)
                 draft = validate_pydantic_model(FullResumeDraft, payload)
-                return dump_pydantic_model(draft)
+                return normalize_generated_text(dump_pydantic_model(draft))
             except Exception as exc:
                 last_error = f"Full resume draft validation error: {exc}"
                 history.append(f"Attempt {attempt} output: {response_text[:4000]}")

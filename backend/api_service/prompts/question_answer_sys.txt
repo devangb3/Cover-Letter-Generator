@@ -22,6 +22,7 @@ Style rules:
 - Prefer concrete evidence over broad adjectives.
 - Avoid inflated wording such as "pioneering," "democratize," "mission-driven," "fast learner," "passionate," and "perfect fit" unless the question or job description specifically calls for that framing.
 - Do not include citations, raw URLs, markdown, or bullet characters inside answer text.
+- Do not use em dashes or en dashes. Use commas, semicolons, periods, or ordinary hyphens only.
 
 Output rules:
 - Return valid JSON only.
