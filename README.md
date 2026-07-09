@@ -2,11 +2,11 @@
 
 A web app that generates personalized cover letters from job descriptions and user details, then renders the output into a downloadable PDF.
 
-The app now uses **OpenRouter only** for LLM generation, with the allowed model list defined in YAML and surfaced in the UI dropdown.
+The app uses **OpenRouter through the OpenAI-compatible SDK** for LLM generation, with the allowed model list defined in YAML and surfaced in the UI dropdown.
 
 ## Features
 
-- OpenRouter-powered cover letter generation
+- OpenRouter-powered cover letter generation through the OpenAI SDK
 - Job application question answering using the same resume/projects context
 - Resume PDF tailoring from structured `resume.yaml`
 - YAML-driven model allowlist (`config/model.yaml`)
@@ -60,6 +60,29 @@ OPENROUTER_API_KEY=your_openrouter_api_key_here
 # OPENROUTER_HTTP_REFERER=https://your-app-domain.com
 # OPENROUTER_APP_TITLE=Cover Letter Generator
 ```
+
+To export traces to PilotCrew Observability, add the OTLP endpoint, ingest key
+header, and service name:
+
+```bash
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://pilotcrew.example.com/v1/traces
+OTEL_EXPORTER_OTLP_HEADERS=x-pilotcrew-ingest-key=your_pilotcrew_ingest_key
+OTEL_SERVICE_NAME=cover-letter-generator
+```
+
+Trace export is enabled when `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is set. The
+backend uses standard OpenTelemetry Flask/httpx instrumentation for service
+spans and OpenInference OpenAI instrumentation for OpenRouter LLM calls. The
+OpenInference spans carry prompt, response, model, and usage attributes when the
+SDK/provider response exposes them.
+
+Optional metadata can be added later for filtering and release comparison:
+
+```bash
+OTEL_RESOURCE_ATTRIBUTES=deployment.environment=production,pilotcrew.deployment_id=2026-06-25.1
+```
+
+Set `PILOTCREW_OBSERVABILITY_ENABLED=false` to force-disable trace export.
 
 ### 4. Configure model catalog
 

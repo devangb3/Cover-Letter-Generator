@@ -5,7 +5,7 @@ import os
 import re
 import traceback
 
-import httpx
+from openai import APIStatusError, OpenAI
 
 from backend.api_service.model_config import (
     get_base_url,
@@ -47,6 +47,37 @@ WEB_SEARCH_TOOL = {
     },
 }
 EXPERIENCE_OWNED_PROJECT_IDS = {"pilotcrew-gen-eval", "lh-multimodal-svc"}
+
+
+def build_openrouter_client():
+    return OpenAI(
+        api_key=OPENROUTER_API_KEY,
+        base_url=get_base_url().rstrip("/"),
+        timeout=120.0,
+    )
+
+
+def extract_chat_completion_text(completion):
+    choices = completion.choices or []
+    if not choices:
+        raise RuntimeError("OpenRouter response did not include any choices")
+
+    message = choices[0].message
+    response_text = parse_openrouter_content(message.content)
+    if not response_text:
+        raise RuntimeError("No response text received from OpenRouter")
+    return response_text
+
+
+def create_openrouter_completion(**kwargs):
+    try:
+        completion = build_openrouter_client().chat.completions.create(**kwargs)
+        return extract_chat_completion_text(completion)
+    except APIStatusError as exc:
+        logger.error("OpenRouter API error %s: %s", exc.status_code, exc.response.text)
+        raise RuntimeError(
+            f"OpenRouter API request failed with status {exc.status_code}"
+        ) from exc
 
 def get_pydantic_json_schema(model):
     if hasattr(model, "model_json_schema"):
@@ -206,7 +237,7 @@ def call_openrouter(system_instruction, prompt, selected_model, enable_web_searc
     if not is_allowed_model(selected_model):
         raise ValueError(f"Model '{selected_model}' is not allowed by server configuration")
 
-    payload = {
+    completion_kwargs = {
         "model": selected_model,
         "messages": [
             {"role": "system", "content": system_instruction},
@@ -226,40 +257,11 @@ def call_openrouter(system_instruction, prompt, selected_model, enable_web_searc
         ],
     }
     if enable_web_search:
-        payload["tools"] = [WEB_SEARCH_TOOL]
-
-    headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type": "application/json",
-    }
-    http_referer = os.environ.get("OPENROUTER_HTTP_REFERER")
-    app_title = os.environ.get("OPENROUTER_APP_TITLE")
-    if http_referer:
-        headers["HTTP-Referer"] = http_referer
-    if app_title:
-        headers["X-Title"] = app_title
+        completion_kwargs["extra_body"] = {"tools": [WEB_SEARCH_TOOL]}
 
     endpoint = f"{get_base_url().rstrip('/')}/chat/completions"
     logger.info(f"Calling OpenRouter chat completions at: {endpoint}")
-    response = httpx.post(endpoint, headers=headers, json=payload, timeout=120.0)
-
-    if response.status_code >= 400:
-        logger.error(f"OpenRouter API error {response.status_code}: {response.text}")
-        raise RuntimeError(f"OpenRouter API request failed with status {response.status_code}")
-
-    response_data = response.json()
-    choices = response_data.get("choices") or []
-    if not choices:
-        logger.error("OpenRouter response did not include any choices")
-        raise RuntimeError("OpenRouter response did not include any choices")
-
-    message = choices[0].get("message", {})
-    response_text = parse_openrouter_content(message.get("content"))
-    if not response_text:
-        logger.error("No response text received from OpenRouter")
-        raise RuntimeError("No response text received from OpenRouter")
-
-    return response_text
+    return create_openrouter_completion(**completion_kwargs)
 
 
 def call_openrouter_json(
@@ -273,7 +275,7 @@ def call_openrouter_json(
     if not OPENROUTER_API_KEY:
         raise RuntimeError("OPENROUTER_API_KEY not configured")
 
-    payload = {
+    completion_kwargs = {
         "model": selected_model,
         "messages": [
             {"role": "system", "content": system_instruction},
@@ -283,27 +285,11 @@ def call_openrouter_json(
         "temperature": temperature,
     }
     if enable_web_search:
-        payload["tools"] = [WEB_SEARCH_TOOL]
+        completion_kwargs["extra_body"] = {"tools": [WEB_SEARCH_TOOL]}
 
-    headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type": "application/json",
-    }
     endpoint = f"{get_base_url().rstrip('/')}/chat/completions"
-    response = httpx.post(endpoint, headers=headers, json=payload, timeout=120.0)
-    if response.status_code >= 400:
-        raise RuntimeError(f"OpenRouter API request failed with status {response.status_code}")
-
-    response_data = response.json()
-    choices = response_data.get("choices") or []
-    if not choices:
-        raise RuntimeError("OpenRouter response did not include any choices")
-
-    message = choices[0].get("message", {})
-    response_text = parse_openrouter_content(message.get("content"))
-    if not response_text:
-        raise RuntimeError("No response text received from OpenRouter")
-    return response_text
+    logger.info(f"Calling OpenRouter chat completions at: {endpoint}")
+    return create_openrouter_completion(**completion_kwargs)
 
 
 def parse_questions(questions):

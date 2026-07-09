@@ -16,6 +16,7 @@ from backend.api_service.ai_service import (
     generate_resume_bullets,
 )
 from backend.api_service.model_config import get_default_model, get_models, is_allowed_model, load_model_config
+from backend.observability import configure_observability
 from pdf_service.pdf_generator import generate_cover_letter_pdf
 from pdf_service.resume_generator import (
     compile_tex_to_pdf,
@@ -44,6 +45,7 @@ def json_dumps_for_prompt(payload, limit=6000):
 
 app = Flask(__name__, static_folder='../frontend/build')
 CORS(app)
+configure_observability(app, logger)
 
 load_model_config()
 
