@@ -13,16 +13,14 @@ from backend.api_service.ai_service import (
     generate_cover_letter,
     generate_full_resume_draft,
     generate_job_question_answers,
-    generate_resume_bullets,
+    generate_recruiting_email,
 )
 from backend.api_service.model_config import get_default_model, get_models, is_allowed_model, load_model_config
 from pdf_service.pdf_generator import generate_cover_letter_pdf
 from pdf_service.resume_generator import (
     compile_tex_to_pdf,
-    get_resume_tailoring_targets,
     load_resume_yaml,
     render_full_resume_tex,
-    render_tailored_resume_tex,
 )
 
 logging.basicConfig(
@@ -159,8 +157,8 @@ def answer_questions():
 
 
 
-@app.route('/api/generate-resume', methods=['POST'])
-def generate_resume():
+@app.route('/api/draft-recruiting-email', methods=['POST'])
+def draft_recruiting_email():
     try:
         data = request.get_json(silent=True) or {}
         job_description = data.get('jobDescription', '')
@@ -172,35 +170,18 @@ def generate_resume():
         if not is_allowed_model(model):
             return jsonify({'error': f"Invalid model '{model}'. Please select a model from /api/models."}), 400
 
-        resume_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'resume.yaml')
-        resume_data = load_resume_yaml(resume_path)
-        resume_targets = get_resume_tailoring_targets(resume_data)
-        retry_history = []
-        for attempt in range(1, 4):
-            bullet_payload = generate_resume_bullets(
-                job_description,
-                company_name,
-                custom_instructions,
-                personal_info,
-                resume_targets,
-                model,
-                retry_history=retry_history,
-            )
-            if 'error' in bullet_payload:
-                return jsonify(bullet_payload), 500
-
-            tex_content = render_tailored_resume_tex(resume_data, bullet_payload)
-            compile_result = compile_tex_to_pdf(tex_content, company_name=company_name)
-            if compile_result.get('ok'):
-                return jsonify({'resumeFile': compile_result.get('resumeFile')}), 200
-
-            compiler_error = compile_result.get('compilerError', '')
-            logger.error("Resume LaTeX compile failed on attempt %s: %s", attempt, compiler_error[-1500:])
-            retry_history.append(f"Attempt {attempt} LaTeX compiler error: {compiler_error}")
-
-        return jsonify({'error': 'Failed to generate a compilable resume after retries.', 'compilerError': retry_history[-1] if retry_history else ''}), 500
+        result = generate_recruiting_email(
+            job_description,
+            company_name,
+            custom_instructions,
+            personal_info,
+            model,
+        )
+        if 'error' in result:
+            return jsonify(result), 500
+        return jsonify(result), 200
     except Exception as e:
-        logger.error(f"Error in generate_resume: {str(e)}")
+        logger.error(f"Error in draft_recruiting_email: {str(e)}")
         logger.error(traceback.format_exc())
         return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
 

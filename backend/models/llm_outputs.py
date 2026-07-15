@@ -24,21 +24,17 @@ class JobQuestionAnswerResponse(BaseModel):
     )
 
 
-class ResumeBulletUpdate(BaseModel):
-    id: str = Field(
+class RecruitingEmailDraft(BaseModel):
+    subject: str = Field(
         ...,
-        description="Stable resume.yaml entry id for the experience or project being updated.",
+        description="A concise email subject tailored to the target company and role.",
     )
-    bullets: List[str] = Field(
+    body: str = Field(
         ...,
-        description="Replacement bullets for that entry. Preserve the required bullet count.",
-    )
-
-
-class ResumeBulletPatch(BaseModel):
-    updates: List[ResumeBulletUpdate] = Field(
-        ...,
-        description="Bullet replacements for every provided resume tailoring target.",
+        description=(
+            "A concise outreach email to the recruiting team, recruiter, or founder, "
+            "grounded only in the provided candidate and job context."
+        ),
     )
 
 

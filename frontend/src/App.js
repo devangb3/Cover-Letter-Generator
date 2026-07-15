@@ -101,6 +101,15 @@ function MailIcon({ className }) {
   );
 }
 
+function SendIcon({ className }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <line x1="22" y1="2" x2="11" y2="13" />
+      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+    </svg>
+  );
+}
+
 function MessageIcon({ className }) {
   return (
     <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -179,6 +188,7 @@ function App() {
   const [coverLetterResult, setCoverLetterResult] = useState(null);
   const [editableCoverLetter, setEditableCoverLetter] = useState('');
   const [questionAnswers, setQuestionAnswers] = useState([]);
+  const [recruitingEmailDraft, setRecruitingEmailDraft] = useState(null);
   const [generatedResumeFile, setGeneratedResumeFile] = useState(null);
   const [activeOutputTab, setActiveOutputTab] = useState(null);
   const [error, setError] = useState(null);
@@ -186,6 +196,7 @@ function App() {
   const [pdfError, setPdfError] = useState(null);
   const [resumeWarning, setResumeWarning] = useState(null);
   const [questionError, setQuestionError] = useState(null);
+  const [emailError, setEmailError] = useState(null);
   const [personalInfo, setPersonalInfo] = useState(INITIAL_PERSONAL_INFO);
 
   /* Resize state */
@@ -195,11 +206,11 @@ function App() {
   const isGeneratingCoverLetter = loadingAction === 'cover-letter';
   const isAnsweringQuestions = loadingAction === 'question-answers';
   const isDownloadingPdf = loadingAction === 'pdf-download';
-  const isGeneratingResume = loadingAction === 'resume-generate';
+  const isDraftingRecruitingEmail = loadingAction === 'recruiting-email';
   const isGeneratingFullResume = loadingAction === 'full-resume-generate';
   const isBusy = Boolean(loadingAction);
-  const hasOutput = coverLetterResult || questionAnswers.length > 0 || generatedResumeFile;
-  const hasError = error || apiError || pdfError || questionError;
+  const hasOutput = coverLetterResult || questionAnswers.length > 0 || recruitingEmailDraft || generatedResumeFile;
+  const hasError = error || apiError || pdfError || questionError || emailError;
 
   /* ─── Resize drag logic ─────────────────────────── */
 
@@ -302,6 +313,7 @@ function App() {
     setPdfError(null);
     setResumeWarning(null);
     setQuestionError(null);
+    setEmailError(null);
   };
 
   /* ─── Action handlers ───────────────────────────── */
@@ -366,28 +378,37 @@ function App() {
     }
   };
 
-  const handleGenerateResume = async () => {
+  const handleDraftRecruitingEmail = async () => {
     const validationError = validateSharedFields();
     if (validationError) { setError(validationError); return; }
-    setLoadingAction('resume-generate');
+    setLoadingAction('recruiting-email');
     clearErrors();
-    setGeneratedResumeFile(null);
+    setRecruitingEmailDraft(null);
+    setActiveOutputTab('email');
     try {
-      const res = await fetch(`${API_URL}/api/generate-resume`, {
+      const res = await fetch(`${API_URL}/api/draft-recruiting-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildRequestPayload()),
       });
       const data = await res.json();
-      if (!res.ok || data.error) { setPdfError(data.error || data.compilerError || 'Failed to generate resume PDF'); return; }
-      if (data.resumeFile) {
-        setGeneratedResumeFile(data.resumeFile);
-        setActiveOutputTab('resume');
-      }
+      if (!res.ok || data.error) { setEmailError(data.error || 'Failed to draft recruiting email'); return; }
+      if (!data.subject || !data.body) { setEmailError('The email draft was incomplete.'); return; }
+      setRecruitingEmailDraft({ subject: data.subject, body: data.body });
     } catch (err) {
-      setPdfError(err.message || 'An unexpected error occurred while generating resume');
+      setEmailError(err.message || 'An unexpected error occurred while drafting the email');
     } finally {
       setLoadingAction(null);
+    }
+  };
+
+  const handleCopyRecruitingEmail = async () => {
+    if (!recruitingEmailDraft) return;
+    const emailText = `Subject: ${recruitingEmailDraft.subject}\n\n${recruitingEmailDraft.body}`;
+    try {
+      await copyTextToClipboard(emailText);
+    } catch (err) {
+      setEmailError(err.message || 'Unable to copy the email');
     }
   };
 
@@ -415,16 +436,6 @@ function App() {
     } finally {
       setLoadingAction(null);
     }
-  };
-
-  const handleDownloadResume = () => {
-    if (!generatedResumeFile) return;
-    const link = document.createElement('a');
-    link.href = `${API_URL}/api/download/${generatedResumeFile}`;
-    link.download = generatedResumeFile;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   const handleAnswerQuestions = async () => {
@@ -496,12 +507,12 @@ function App() {
           </button>
           <button
             type="button"
-            className="header-btn header-btn-resume"
-            onClick={handleGenerateResume}
+            className="header-btn header-btn-email"
+            onClick={handleDraftRecruitingEmail}
             disabled={isBusy || modelsLoading || !!modelLoadError || !selectedModel}
-            title="Generate a tailored resume PDF"
+            title="Draft an email to the recruiting team"
           >
-            {isGeneratingResume ? <><Spinner /> Generating…</> : <><DocIcon /> Resume PDF</>}
+            {isDraftingRecruitingEmail ? <><Spinner /> Drafting…</> : <><SendIcon /> Recruiter Email</>}
           </button>
           <button
             type="button"
@@ -668,6 +679,14 @@ function App() {
                   Answers
                 </button>
               )}
+              {recruitingEmailDraft && (
+                <button
+                  className={`output-tab output-tab--amber${activeOutputTab === 'email' ? ' active' : ''}`}
+                  onClick={() => setActiveOutputTab('email')}
+                >
+                  Recruiter Email
+                </button>
+              )}
               {generatedResumeFile && (
                 <button
                   className={`output-tab output-tab--amber${activeOutputTab === 'resume' ? ' active' : ''}`}
@@ -691,6 +710,9 @@ function App() {
           )}
           {questionError && activeOutputTab === 'answers' && (
             <div className="error-message"><h3>Question Error</h3><p>{questionError}</p></div>
+          )}
+          {emailError && activeOutputTab === 'email' && (
+            <div className="error-message"><h3>Email Error</h3><p>{emailError}</p></div>
           )}
 
           {/* Cover letter tab */}
@@ -736,6 +758,46 @@ function App() {
             </div>
           )}
 
+          {/* Recruiting email tab */}
+          {activeOutputTab === 'email' && recruitingEmailDraft && (
+            <div className="result-section recruiting-email-section">
+              <div className="result-section-header recruiting-email-header">
+                <div>
+                  <span className="result-eyebrow">Ready to personalize and send</span>
+                  <h2 className="result-section-title amber">Recruiting Outreach Email</h2>
+                </div>
+                <button
+                  type="button"
+                  className="copy-email-btn"
+                  onClick={handleCopyRecruitingEmail}
+                  disabled={isBusy || !recruitingEmailDraft.subject.trim() || !recruitingEmailDraft.body.trim()}
+                  title="Copy subject and email body"
+                >
+                  <SendIcon /> Copy Email
+                </button>
+              </div>
+              <div className="email-draft-field">
+                <label htmlFor="recruitingEmailSubject">Subject</label>
+                <input
+                  id="recruitingEmailSubject"
+                  type="text"
+                  value={recruitingEmailDraft.subject}
+                  onChange={(e) => setRecruitingEmailDraft((draft) => ({ ...draft, subject: e.target.value }))}
+                />
+              </div>
+              <div className="email-draft-field">
+                <label htmlFor="recruitingEmailBody">Email</label>
+                <textarea
+                  id="recruitingEmailBody"
+                  className="recruiting-email-editor"
+                  value={recruitingEmailDraft.body}
+                  onChange={(e) => setRecruitingEmailDraft((draft) => ({ ...draft, body: e.target.value }))}
+                  rows="14"
+                />
+              </div>
+            </div>
+          )}
+
           {/* Resume PDF tab — fills the panel */}
           {activeOutputTab === 'resume' && generatedResumeFile && (
             <div className="resume-pdf-section resume-pdf-full">
@@ -764,7 +826,8 @@ function App() {
               <div className="output-empty-chips">
                 <span className="output-chip blue">Cover Letter</span>
                 <span className="output-chip violet">Answer Questions</span>
-                <span className="output-chip amber">Resume PDF</span>
+                <span className="output-chip amber">Recruiter Email</span>
+                <span className="output-chip green">Full Resume</span>
               </div>
             </div>
           )}

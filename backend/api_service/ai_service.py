@@ -16,7 +16,7 @@ from backend.api_service.model_config import (
 from backend.models.llm_outputs import (
     FullResumeDraft,
     JobQuestionAnswerResponse,
-    ResumeBulletPatch,
+    RecruitingEmailDraft,
 )
 
 logging.basicConfig(
@@ -499,21 +499,16 @@ def generate_job_question_answers(
         return {"error": str(exc), "traceback": traceback.format_exc()}
 
 
-def generate_resume_bullets(
+def generate_recruiting_email(
     job_description,
     company_name,
     custom_instructions,
     personal_info,
-    resume_targets,
     model="~google/gemini-flash-latest",
-    retry_history=None,
 ):
-    """Generate LaTeX-safe bullets for experience and projects only."""
+    """Draft a concise outreach email for a company's recruiting team."""
     try:
-        if not resume_targets:
-            raise ValueError("No resume entries were provided for tailoring")
-
-        system_instruction = load_instruction("prompts/resume_bullet_points_sys.txt")
+        system_instruction = load_instruction("prompts/recruiting_email_sys.txt")
         shared_context = build_application_context(
             job_description,
             company_name,
@@ -521,65 +516,30 @@ def generate_resume_bullets(
             personal_info,
         )
         response_schema = json.dumps(
-            get_pydantic_json_schema(ResumeBulletPatch),
+            get_pydantic_json_schema(RecruitingEmailDraft),
             indent=2,
         )
-        targets_json = json.dumps(resume_targets, indent=2)
-        target_requirements = "\n".join(
-            f"- {target['id']}: exactly {target['bullet_count']} bullets"
-            for target in resume_targets
-        )
-        base_prompt = "\n\n".join(
+        prompt = "\n\n".join(
             [
                 f"Target company: {company_name}",
-                "Update only bullet text for the provided resume.yaml entries.",
-                "Return one update for every provided id.",
-                "Bullet count requirements:",
-                target_requirements,
-                "Each bullet must be plain text.",
-                "Rewrite strength requirements:",
-                "- Make the bullets visibly different from the current_bullets; do not merely shorten, clean up, or swap a few words.",
-                "- Preserve truthful facts, but recast the emphasis around the target role's strongest supported needs.",
-                "- For AI/ML solution roles, prefer supported language around deployment, integration, RAG/search, evaluation, cloud, Docker, observability, customer or stakeholder workflows, enterprise scale, and performance optimization.",
-                "- If a target entry is only weakly relevant, still improve the framing substantially instead of returning a generic paraphrase.",
+                "Draft one outreach email to the people responsible for recruiting for this role.",
                 "Return valid JSON only that conforms to this Pydantic-generated JSON schema:",
                 response_schema,
-                "Resume entries available for tailoring:",
-                targets_json,
-                "Job Context:",
+                "Application context:",
                 shared_context,
             ]
         )
-
-        history = list(retry_history or [])
-        last_error = ""
-        for attempt in range(1, 4):
-            retry_context = ""
-            if history:
-                retry_context = (
-                    "\n\nPrevious attempt history:\n"
-                    + "\n".join(history)
-                    + f"\nFix this latest error: {last_error}"
-                )
-            response_text = call_openrouter_json(
-                system_instruction,
-                base_prompt + retry_context,
-                model,
-                max_tokens=3200,
-                temperature=0.7,
-                enable_web_search=True,
-            )
-            try:
-                payload = parse_json_response(response_text)
-                patch = validate_pydantic_model(ResumeBulletPatch, payload)
-                return dump_pydantic_model(patch)
-            except Exception as exc:
-                last_error = f"Resume bullet payload validation error: {exc}"
-                history.append(f"Attempt {attempt} output: {response_text[:1200]}")
-
-        raise ValueError(f"Unable to generate valid JSON after retries: {last_error}")
+        response_text = call_openrouter(
+            system_instruction,
+            prompt,
+            model,
+            enable_web_search=True,
+        )
+        payload = parse_json_response(response_text)
+        draft = validate_pydantic_model(RecruitingEmailDraft, payload)
+        return normalize_generated_text(dump_pydantic_model(draft))
     except Exception as exc:
-        logger.error(f"Error generating resume bullets: {exc}")
+        logger.error(f"Error generating recruiting email: {exc}")
         logger.error(traceback.format_exc())
         return {"error": str(exc), "traceback": traceback.format_exc()}
 

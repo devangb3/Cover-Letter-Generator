@@ -27,7 +27,7 @@ education:
   - degree: Masters of Science in Computer Science
     institution: University of California, Davis
     gpa: "GPA: 3.91/4.0"
-    date: Sept 2024 - June 2026
+    date: Sept 2024 - Aug 2026
     coursework: Distributed Databases, Machine Learning, Data Structures and Algorithms, Vision Language Models
   - degree: Bachelor of Engineering in Computer Engineering | Honors Track in AI/ML
     institution: Pune University, India
@@ -52,16 +52,16 @@ experience:
         technologies: Python, MongoDB, LLM Evaluations, Prompt Optimization, OpenRouter, Observability
         highlights:
           - Built repeatable evaluation infrastructure with structured run tracking, artifact export, failure-mode reporting, and observability views for comparing prompt and system changes.
-          - Added runner support across coding, RAG, interactive tool-use, BrowseComp, MultiChallenge, tau2, and SWE-bench style experiments.
-          - Implemented OpenRouter usage and cost tracking plus regression guards such as client-prompt acceptance gates, oracle gates, and gate-skip diagnostics.
+          - Added runners for coding, RAG, interactive tool-use, deep-research, conversational, and goal-state evaluation workflows.
+          - Implemented usage and cost tracking plus regression guards such as prompt-acceptance gates, oracle gates, and gate-skip diagnostics.
   - id: experience_learnhaus_swe_intern
     title: Software Engineer Intern
     organization: LearnHaus AI
     dates: Jun -- Aug 2025
     location: Sacramento, CA
     bullets:
-      - Built a full-stack multimodal AI application (React, Python) from scratch, processing video, audio, and text inputs with optimized latency for real-time user feedback.
-      - Developed a LLM-as-Judge evaluation framework using GPT-5 and Gemini-3 to score model outputs across multiple quality dimensions; deployed to Google Cloud Platform(GCP)
+      - Built and deployed a full-stack multimodal coaching application in React and Python that orchestrated video, audio, transcript, and multi-provider model analysis through asynchronous workflows.
+      - Developed an LLM-as-Judge workflow for cross-provider response evaluation and deployed the services on GCP Cloud Run.
     supporting_projects:
       - id: lh-multimodal-svc
         title: Emotion-Aware Feedback System for Public Speaking
@@ -78,18 +78,18 @@ experience:
     dates: Aug 2022 -- Sept 2024
     location: Pune, India
     bullets:
-      - Shipped 20+ production features for a Fortune 500 fintech platform; contributed to scalable microservices using C# and SQL. Collaborated within a 30+ person cross-functional Agile team using JIRA.
-      - Optimized a legacy .NET backend servicing over 1 million monthly requests, applying key design patterns to reduce code complexity & successfully redesigning 50+ REST APIs in MVC architecture
+      - Shipped 30 production features for a Fortune 500 wealth-management platform, building C#/.NET and SQL services in a 30+ person cross-functional Agile team.
+      - Optimized a legacy backend serving 1M+ monthly requests and redesigned 50+ REST APIs to simplify contracts, service boundaries, and maintenance.
 
 projects:
   - id: project_process_reward_model
-    title: Process Reward Model for On-Device LLMs
+    title: Process Reward Model for Compute-Constrained Reasoning
     url: https://github.com/devangb3/Process-Reward-Models
     url_label: GitHub
     context: Graduate Research
     bullets:
-      - Performed Supervised Fine Tuning on an 8B parameter LLM using PyTorch to verify reasoning steps; optimized for edge deployment with a lightweight 0.6B model.
-      - Improved model accuracy by 21% on GSM8K using specualtive decoding over baseline methods; published model weights to HuggingFace.
+      - Fine-tuned Qwen3-8B with LoRA on 563,181 labeled PRM800K steps, achieving 94.54% step-verification accuracy.
+      - At N=5, PRM-guided selection achieved 60.0% GSM8K accuracy vs. 50.8% self-consistency and matched N=64 self-consistency with 12.8x fewer generations.
   - id: project_resshare
     title: "ResShare: Decentralized File Sharing Platform"
     url: https://github.com/ResilientApp/ResShareDeployable

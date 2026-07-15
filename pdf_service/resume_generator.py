@@ -67,67 +67,6 @@ def load_resume_yaml(resume_path: str):
     return resume_data
 
 
-def get_resume_tailoring_targets(resume_data):
-    targets = []
-    for section_name in ("experience", "projects"):
-        for entry in resume_data.get(section_name, []):
-            bullets = entry.get("bullets") or []
-            entry_id = entry.get("id")
-            title = entry.get("title")
-            if not entry_id or not title:
-                raise ValueError(f"Every {section_name} entry needs an id and title")
-            targets.append(
-                {
-                    "id": entry_id,
-                    "section": section_name,
-                    "title": title,
-                    "organization": entry.get("organization", ""),
-                    "bullet_count": len(bullets),
-                    "current_bullets": bullets,
-                }
-            )
-    return targets
-
-
-def apply_bullet_updates(resume_data, bullet_payload):
-    updated_resume = copy.deepcopy(resume_data)
-    known_ids = {target["id"] for target in get_resume_tailoring_targets(resume_data)}
-    updates = bullet_payload.get("updates")
-    if not isinstance(updates, list):
-        raise ValueError("Resume bullet response did not include an 'updates' array")
-
-    update_by_id = {}
-    for update in updates:
-        if not isinstance(update, dict):
-            raise ValueError("Every resume bullet update must be an object")
-        entry_id = update.get("id")
-        bullets = update.get("bullets")
-        if not entry_id or not isinstance(bullets, list):
-            raise ValueError("Every resume bullet update needs an id and bullets array")
-        if entry_id not in known_ids:
-            raise ValueError(f"Resume bullet update referenced unknown id '{entry_id}'")
-        if entry_id in update_by_id:
-            raise ValueError(f"Resume bullet response included duplicate update for '{entry_id}'")
-        update_by_id[entry_id] = [str(bullet).strip() for bullet in bullets if str(bullet).strip()]
-
-    for section_name in ("experience", "projects"):
-        for entry in updated_resume.get(section_name, []):
-            entry_id = entry.get("id")
-            if entry_id not in update_by_id:
-                raise ValueError(f"Missing resume bullet update for '{entry_id}'")
-
-            existing_bullets = entry.get("bullets") or []
-            new_bullets = update_by_id[entry_id]
-            if len(new_bullets) != len(existing_bullets):
-                raise ValueError(
-                    f"Resume bullet update for '{entry_id}' must contain "
-                    f"{len(existing_bullets)} bullets"
-                )
-            entry["bullets"] = new_bullets
-
-    return updated_resume
-
-
 def apply_full_resume_draft(resume_data, draft_payload, project_catalog=None):
     updated_resume = copy.deepcopy(resume_data)
     mandatory_experience_ids = [entry.get("id") for entry in resume_data.get("experience", []) if entry.get("id")]
@@ -402,10 +341,6 @@ def render_resume_tex(resume_data):
     lines.extend(_render_projects(resume_data["projects"]))
     lines.append(_line(r"\end{document}"))
     return "".join(lines)
-
-
-def render_tailored_resume_tex(resume_data, bullet_payload):
-    return render_resume_tex(apply_bullet_updates(resume_data, bullet_payload))
 
 
 def render_full_resume_tex(resume_data, draft_payload, project_catalog=None):

@@ -10,7 +10,7 @@ RUN npm run build
 FROM python:3.9-slim
 WORKDIR /app
 
-# pdflatex is required for /api/generate-resume (resume PDF compilation)
+# pdflatex is required for /api/generate-full-resume (resume PDF compilation)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     texlive-latex-base \
     texlive-latex-recommended \

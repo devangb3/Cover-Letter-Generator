@@ -219,7 +219,7 @@
   color: #fff;
 }
 
-.header-btn-resume {
+.header-btn-email {
   background-color: var(--amber);
   color: var(--amber-text);
   font-weight: 700;
@@ -630,7 +630,7 @@ textarea {
   flex-shrink: 0;
 }
 
-.header-btn-resume .spinner {
+.header-btn-email .spinner {
   border-color: rgba(0, 0, 0, 0.15);
   border-top-color: var(--amber-text);
 }
@@ -703,6 +703,7 @@ textarea {
 .output-chip.blue  { color: var(--accent);  border-color: var(--accent);  background: var(--accent-dim); }
 .output-chip.violet{ color: var(--violet);  border-color: var(--violet);  background: var(--violet-dim); }
 .output-chip.amber { color: var(--amber);   border-color: var(--amber);   background: var(--amber-dim);  }
+.output-chip.green { color: var(--success); border-color: var(--success); background: rgba(63, 185, 80, 0.1); }
 
 /* ─── Error messages ──────────────────────────────── */
 
@@ -780,6 +781,101 @@ textarea {
   line-height: 1.8;
   white-space: pre-wrap;
   font-size: 13.5px;
+}
+
+.recruiting-email-section {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(227, 160, 8, 0.3);
+  background:
+    linear-gradient(135deg, rgba(227, 160, 8, 0.06), transparent 42%),
+    var(--bg-surface);
+}
+
+.recruiting-email-section::after {
+  content: '';
+  position: absolute;
+  top: -45px;
+  right: -45px;
+  width: 120px;
+  height: 120px;
+  border: 1px solid rgba(227, 160, 8, 0.12);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.recruiting-email-header {
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.recruiting-email-header > div {
+  min-width: 0;
+}
+
+.result-eyebrow {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--amber);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.copy-email-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  padding: 7px 11px;
+  border: 1px solid rgba(227, 160, 8, 0.45);
+  border-radius: var(--radius-sm);
+  background: var(--amber-dim);
+  color: var(--amber-hover);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.74rem;
+  font-weight: 700;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.copy-email-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.copy-email-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--amber);
+  background: rgba(227, 160, 8, 0.16);
+}
+
+.copy-email-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.email-draft-field {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 14px;
+}
+
+.email-draft-field:last-child {
+  margin-bottom: 0;
+}
+
+.email-draft-field input {
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.recruiting-email-editor {
+  min-height: 290px;
+  line-height: 1.8;
+  white-space: pre-wrap;
 }
 
 .result-section-header {

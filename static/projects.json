@@ -1,11 +1,11 @@
 [
   {
     "id": "causalflow",
-    "title": "CausalFlow - Autonomous Agent Debugging Framework",
+    "title": "CausalFlow - Causal Attribution and Repair for LLM Agents",
     "url": "https://github.com/devangb3/CF-Implementation",
     "url_label": "GitHub",
-    "context": "NeurIPS '26 submission",
-    "description": "Built an interventional causal-attribution framework for multi-step LLM agent traces: models execution as a DAG, computes Causal Responsibility Scores (CRS) via step-level interventions and re-execution generating minimal contrastive repair pairs usable as DPO post-training data.",
+    "context": "NeurIPS 2026 submission",
+    "description": "Built an interventional framework for multi-step LLM-agent traces that models execution as a dependency DAG, computes Causal Responsibility Scores through step-level interventions, and generates minimal contrastive repair pairs for deploy-time repair or preference training.",
     "technologies": [
       "Python",
       "LLMs",
@@ -147,11 +147,11 @@
   },
   {
     "id": "prm-on-device",
-    "title": "Process Reward Model (PRM) for On-Device LLMs",
+    "title": "Process Reward Model for Compute-Constrained Reasoning",
     "url": "https://github.com/devangb3/Process-Reward-Models",
     "url_label": "GitHub",
     "context": "Graduate Research",
-    "description": "Benchmarked Process Reward Models in constrained-compute settings: fine-tuned Qwen3-8B with LoRA on PRM800K (563K labeled steps) as a step-level verifier, paired it with a 0.6B generator on GSM8K, and showed improved accuracy and sample efficiency over self-consistency baselines.",
+    "description": "Benchmarked process-reward-guided candidate selection under constrained inference budgets by pairing a LoRA-fine-tuned Qwen3-8B step verifier with a Qwen3-0.6B generator on GSM8K.",
     "technologies": [
       "Python",
       "Qwen",
@@ -160,8 +160,8 @@
       "Inference Optimization"
     ],
     "highlights": [
-      "Fine-tuned Qwen3-8B as a Process Reward Model using LoRA (rank 16, alpha 32) on PRM800K \u2014 563K labeled reasoning steps from 97K problems \u2014 achieving 94.5% step-level verification accuracy.",
-      "Paired the 8B verifier with a 0.6B Qwen generator on GSM8K, improving accuracy by 21% over self-consistency baselines while reducing the number of required candidate generations."
+      "Fine-tuned Qwen3-8B as a Process Reward Model using LoRA on 500K+ labeled PRM800K reasoning steps, achieving 94.54% step-level verification accuracy.",
+      "At N=5 generations, PRM-guided selection achieved 60.0% GSM8K accuracy vs. 50.8% for self-consistency and matched N=64 self-consistency with 12.8x fewer generations."
     ]
   },
   {
@@ -209,24 +209,48 @@
     ]
   },
   {
+    "id": "algotrade",
+    "title": "HammerTrade - Algorithmic Strategy Execution Platform",
+    "url": "",
+    "url_label": "",
+    "context": "Startup project",
+    "description": "Built core backend and execution infrastructure for a multi-user algorithmic-strategy platform, covering project and strategy-file management, parameter sweeps, historical-data ingestion, isolated code execution, and live run monitoring.",
+    "technologies": [
+      "Python",
+      "Flask",
+      "MongoDB",
+      "MongoEngine",
+      "Kafka",
+      "Docker",
+      "WebSockets",
+      "React"
+    ],
+    "highlights": [
+      "Designed MongoEngine schemas and CRUD services for users, projects, strategy files, optimizers, and parameters, including compute-unit accounting for strategy runs.",
+      "Built parameter-grid generation, historical market-data retrieval, and Docker/subprocess execution paths for running strategy variants and collecting their logs and results.",
+      "Implemented Kafka producer/consumer paths and a threaded parallel-execution prototype, plus a React monitoring workflow for live run updates over WebSockets."
+    ]
+  },
+  {
     "id": "synthetic-data-generator",
-    "title": "Synthetic Data Generator",
+    "title": "Synthetic Market Simulator and Trading Environment",
     "url": "https://main.d1jhxtwybbezfy.amplifyapp.com/",
     "url_label": "Demo",
     "context": "",
-    "description": "Built a full-stack application for generating realistic synthetic stock-market data with tunable volatility, event intensity, and black-swan scenarios for analysis and experimentation.",
+    "description": "Built a full-stack synthetic-market simulator that matches agent-generated orders in an order book, streams prices over Socket.IO, and exposes a Gymnasium environment for training and evaluating trading agents across normal, crash, and recovery regimes.",
     "technologies": [
       "Python",
-      "FastAPI",
+      "Flask",
+      "Socket.IO",
+      "Gymnasium",
       "React",
-      "Vite",
       "AWS Amplify",
-      "Financial Modeling"
+      "Market Simulation"
     ],
     "highlights": [
-      "Generated configurable financial time-series data that mimics real-world market behavior under varying volatility profiles.",
-      "Exposed controls for initial price, number of days, volatility, and extreme-event frequency to support different scenario analyses.",
-      "Built a browser-based interface for interactive generation and visualization."
+      "Implemented order-book matching, risk-profiled market agents, configurable crash and recovery dynamics, and time-series features including volume, SMA, RSI, volatility, and market state.",
+      "Built a Gymnasium-compatible environment with buy, sell, and hold actions, transaction costs, portfolio-state observations, rewards, and episode termination rules.",
+      "Added per-session Socket.IO simulation streaming, React controls and charts, and an offline generator for producing training datasets."
     ]
   },
   {
@@ -432,29 +456,6 @@
     "highlights": [
       "Built secure OAuth 2.0 integrations for Gmail and Google Calendar with SSL/TLS-secured Flask backend and MongoDB for session/data persistence.",
       "Generated priority-aware daily summaries with Gemini and added text-to-speech output, smart email reply suggestions, and real-time calendar invite management."
-    ]
-  },
-  {
-    "id": "algotrade",
-    "title": "HammerTrade (Stock Prediction Platform for HFTs)",
-    "url": "https://github.com/devangb3",
-    "url_label": "GitHub",
-    "context": "",
-    "description": "Built a model-comparison platform for trading workflows that continuously retrains predictive models and surfaces the best-performing model for a given asset and time horizon.",
-    "technologies": [
-      "Python",
-      "Flask",
-      "MongoDB",
-      "React",
-      "Docker",
-      "PyTorch",
-      "Scikit-learn",
-      "Pandas"
-    ],
-    "highlights": [
-      "Implemented continuous model retraining and model selection over evolving market data.",
-      "Built a user-facing comparison layer for evaluating predictive models on trading assets.",
-      "Integrated multiple ML frameworks into one end-to-end forecasting platform."
     ]
   },
   {

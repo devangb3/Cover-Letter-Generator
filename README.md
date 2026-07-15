@@ -8,7 +8,8 @@ The app now uses **OpenRouter only** for LLM generation, with the allowed model 
 
 - OpenRouter-powered cover letter generation
 - Job application question answering using the same resume/projects context
-- Resume PDF tailoring from structured `resume.yaml`
+- Recruiting-team outreach email drafting using the same resume/projects context
+- Full resume generation from structured `resume.yaml`
 - YAML-driven model allowlist (`config/model.yaml`)
 - Backend model validation (rejects unknown slugs)
 - React frontend with model dropdown fetched from backend
@@ -76,8 +77,8 @@ openrouter:
 
 ### 5. Add resume context
 
-Place your resume PDF at `static/resume.pdf` for cover-letter and question-answer context.
-Edit `resume.yaml` for generated resume content; the backend renders tailored resume PDFs from this YAML file.
+Place your resume PDF at `static/resume.pdf` for cover-letter, question-answer, and recruiting-email context.
+Edit `resume.yaml` for generated resume content; the backend renders full resume PDFs from this YAML file.
 
 ## Running
 
@@ -117,7 +118,8 @@ docker run -p 8080:8080 -e OPENROUTER_API_KEY=your_key_here cover-letter-generat
 - `GET /api/models`: Returns configured model list and default model
 - `POST /api/analyze`: Generates cover letter text using selected model slug (or default)
 - `POST /api/answer-questions`: Generates answers for pasted application questions using the same candidate context
-- `POST /api/generate-resume`: Generates a tailored resume PDF from `resume.yaml`
+- `POST /api/draft-recruiting-email`: Drafts a subject and email body for the target company's recruiting team
+- `POST /api/generate-full-resume`: Generates a full resume PDF from `resume.yaml`
 - `POST /api/generate-pdf`: Builds PDF from generated text
 - `GET /api/download/<filename>`: Downloads generated PDF
 
