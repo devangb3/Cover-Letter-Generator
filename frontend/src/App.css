@@ -231,6 +231,13 @@
   font-weight: 700;
 }
 
+.header-btn.header-btn-stop {
+  background-color: #da3633;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 0 0 1px rgba(248, 81, 73, 0.35);
+}
+
 /* Header right: model selector */
 .header-meta {
   display: flex;

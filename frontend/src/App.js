@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import './App.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://cover-letter-generator-424176252593.us-central1.run.app';
@@ -128,6 +128,14 @@ function DownloadIcon({ className }) {
   );
 }
 
+function StopIcon({ className }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <rect x="5" y="5" width="14" height="14" rx="1" />
+    </svg>
+  );
+}
+
 /* ─── Small components ────────────────────────────── */
 
 function Spinner() {
@@ -198,6 +206,7 @@ function App() {
   const [questionError, setQuestionError] = useState(null);
   const [emailError, setEmailError] = useState(null);
   const [personalInfo, setPersonalInfo] = useState(INITIAL_PERSONAL_INFO);
+  const activeAiRequestRef = useRef(null);
 
   /* Resize state */
   const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
@@ -272,6 +281,10 @@ function App() {
     loadModels();
   }, []);
 
+  useEffect(() => () => {
+    activeAiRequestRef.current?.controller.abort();
+  }, []);
+
   /* ─── Helpers ───────────────────────────────────── */
 
   const renderTextContent = (text) => {
@@ -316,12 +329,37 @@ function App() {
     setEmailError(null);
   };
 
+  const beginAiRequest = (action) => {
+    if (activeAiRequestRef.current) return null;
+    const controller = new AbortController();
+    activeAiRequestRef.current = { action, controller };
+    setLoadingAction(action);
+    return controller;
+  };
+
+  const finishAiRequest = (controller) => {
+    if (activeAiRequestRef.current?.controller !== controller) return;
+    activeAiRequestRef.current = null;
+    setLoadingAction(null);
+  };
+
+  const handleStopAiRequest = () => {
+    const request = activeAiRequestRef.current;
+    if (!request) return;
+    activeAiRequestRef.current = null;
+    request.controller.abort();
+    setLoadingAction((currentAction) => (
+      currentAction === request.action ? null : currentAction
+    ));
+  };
+
   /* ─── Action handlers ───────────────────────────── */
 
   const handleGenerateCoverLetter = async () => {
     const validationError = validateSharedFields();
     if (validationError) { setError(validationError); return; }
-    setLoadingAction('cover-letter');
+    const controller = beginAiRequest('cover-letter');
+    if (!controller) return;
     clearErrors();
     setCoverLetterResult(null);
     setEditableCoverLetter('');
@@ -330,6 +368,7 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildRequestPayload()),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (!res.ok || data.error) { setApiError(data.error || 'Failed to generate cover letter'); return; }
@@ -343,9 +382,11 @@ function App() {
       setEditableCoverLetter(sanitized.coverLetter);
       setActiveOutputTab('cover-letter');
     } catch (err) {
-      setError(err.message || 'An unexpected error occurred');
+      if (err.name !== 'AbortError') {
+        setError(err.message || 'An unexpected error occurred');
+      }
     } finally {
-      setLoadingAction(null);
+      finishAiRequest(controller);
     }
   };
 
@@ -381,7 +422,8 @@ function App() {
   const handleDraftRecruitingEmail = async () => {
     const validationError = validateSharedFields();
     if (validationError) { setError(validationError); return; }
-    setLoadingAction('recruiting-email');
+    const controller = beginAiRequest('recruiting-email');
+    if (!controller) return;
     clearErrors();
     setRecruitingEmailDraft(null);
     setActiveOutputTab('email');
@@ -390,15 +432,18 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildRequestPayload()),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (!res.ok || data.error) { setEmailError(data.error || 'Failed to draft recruiting email'); return; }
       if (!data.subject || !data.body) { setEmailError('The email draft was incomplete.'); return; }
       setRecruitingEmailDraft({ subject: data.subject, body: data.body });
     } catch (err) {
-      setEmailError(err.message || 'An unexpected error occurred while drafting the email');
+      if (err.name !== 'AbortError') {
+        setEmailError(err.message || 'An unexpected error occurred while drafting the email');
+      }
     } finally {
-      setLoadingAction(null);
+      finishAiRequest(controller);
     }
   };
 
@@ -415,7 +460,8 @@ function App() {
   const handleGenerateFullResume = async () => {
     const validationError = validateSharedFields();
     if (validationError) { setError(validationError); return; }
-    setLoadingAction('full-resume-generate');
+    const controller = beginAiRequest('full-resume-generate');
+    if (!controller) return;
     clearErrors();
     setGeneratedResumeFile(null);
     try {
@@ -423,6 +469,7 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildRequestPayload()),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (!res.ok || data.error) { setPdfError(data.error || data.compilerError || 'Failed to generate full resume PDF'); return; }
@@ -432,9 +479,11 @@ function App() {
         setActiveOutputTab('resume');
       }
     } catch (err) {
-      setPdfError(err.message || 'An unexpected error occurred while generating the full resume');
+      if (err.name !== 'AbortError') {
+        setPdfError(err.message || 'An unexpected error occurred while generating the full resume');
+      }
     } finally {
-      setLoadingAction(null);
+      finishAiRequest(controller);
     }
   };
 
@@ -442,7 +491,8 @@ function App() {
     const validationError = validateSharedFields();
     if (validationError) { setError(validationError); return; }
     if (!jobQuestions.trim()) { setError('Please paste your application questions in the Questions section'); return; }
-    setLoadingAction('question-answers');
+    const controller = beginAiRequest('question-answers');
+    if (!controller) return;
     clearErrors();
     setQuestionAnswers([]);
     try {
@@ -450,6 +500,7 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...buildRequestPayload(), questions: jobQuestions }),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (!res.ok || data.error) { setQuestionError(data.error || 'Failed to answer application questions'); return; }
@@ -458,9 +509,11 @@ function App() {
       setQuestionAnswers(answers);
       setActiveOutputTab('answers');
     } catch (err) {
-      setQuestionError(err.message || 'An unexpected error occurred');
+      if (err.name !== 'AbortError') {
+        setQuestionError(err.message || 'An unexpected error occurred');
+      }
     } finally {
-      setLoadingAction(null);
+      finishAiRequest(controller);
     }
   };
 
@@ -489,39 +542,39 @@ function App() {
         <div className="header-actions">
           <button
             type="button"
-            className="header-btn header-btn-cover"
-            onClick={handleGenerateCoverLetter}
-            disabled={isBusy || modelsLoading || !!modelLoadError || !selectedModel}
-            title="Generate a tailored cover letter"
+            className={`header-btn header-btn-cover${isGeneratingCoverLetter ? ' header-btn-stop' : ''}`}
+            onClick={isGeneratingCoverLetter ? handleStopAiRequest : handleGenerateCoverLetter}
+            disabled={!isGeneratingCoverLetter && (isBusy || modelsLoading || !!modelLoadError || !selectedModel)}
+            title={isGeneratingCoverLetter ? 'Stop generating the cover letter' : 'Generate a tailored cover letter'}
           >
-            {isGeneratingCoverLetter ? <><Spinner /> Generating…</> : <><MailIcon /> Cover Letter</>}
+            {isGeneratingCoverLetter ? <><StopIcon /> Stop</> : <><MailIcon /> Cover Letter</>}
           </button>
           <button
             type="button"
-            className="header-btn header-btn-questions"
-            onClick={handleAnswerQuestions}
-            disabled={isBusy || modelsLoading || !!modelLoadError || !selectedModel}
-            title="Answer application questions"
+            className={`header-btn header-btn-questions${isAnsweringQuestions ? ' header-btn-stop' : ''}`}
+            onClick={isAnsweringQuestions ? handleStopAiRequest : handleAnswerQuestions}
+            disabled={!isAnsweringQuestions && (isBusy || modelsLoading || !!modelLoadError || !selectedModel)}
+            title={isAnsweringQuestions ? 'Stop answering application questions' : 'Answer application questions'}
           >
-            {isAnsweringQuestions ? <><Spinner /> Answering…</> : <><MessageIcon /> Answer Questions</>}
+            {isAnsweringQuestions ? <><StopIcon /> Stop</> : <><MessageIcon /> Answer Questions</>}
           </button>
           <button
             type="button"
-            className="header-btn header-btn-email"
-            onClick={handleDraftRecruitingEmail}
-            disabled={isBusy || modelsLoading || !!modelLoadError || !selectedModel}
-            title="Draft an email to the recruiting team"
+            className={`header-btn header-btn-email${isDraftingRecruitingEmail ? ' header-btn-stop' : ''}`}
+            onClick={isDraftingRecruitingEmail ? handleStopAiRequest : handleDraftRecruitingEmail}
+            disabled={!isDraftingRecruitingEmail && (isBusy || modelsLoading || !!modelLoadError || !selectedModel)}
+            title={isDraftingRecruitingEmail ? 'Stop drafting the recruiting email' : 'Draft an email to the recruiting team'}
           >
-            {isDraftingRecruitingEmail ? <><Spinner /> Drafting…</> : <><SendIcon /> Recruiter Email</>}
+            {isDraftingRecruitingEmail ? <><StopIcon /> Stop</> : <><SendIcon /> Recruiter Email</>}
           </button>
           <button
             type="button"
-            className="header-btn header-btn-full-resume"
-            onClick={handleGenerateFullResume}
-            disabled={isBusy || modelsLoading || !!modelLoadError || !selectedModel}
-            title="Generate a new one-page resume PDF"
+            className={`header-btn header-btn-full-resume${isGeneratingFullResume ? ' header-btn-stop' : ''}`}
+            onClick={isGeneratingFullResume ? handleStopAiRequest : handleGenerateFullResume}
+            disabled={!isGeneratingFullResume && (isBusy || modelsLoading || !!modelLoadError || !selectedModel)}
+            title={isGeneratingFullResume ? 'Stop generating the full resume' : 'Generate a new one-page resume PDF'}
           >
-            {isGeneratingFullResume ? <><Spinner /> Generating…</> : <><DocIcon /> Full Resume</>}
+            {isGeneratingFullResume ? <><StopIcon /> Stop</> : <><DocIcon /> Full Resume</>}
           </button>
         </div>
 
