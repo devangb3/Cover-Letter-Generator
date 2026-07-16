@@ -316,7 +316,7 @@
     ],
     "highlights": [
       "Built file upload, download, folder management, and user-level sharing workflows using ResilientDB for metadata and IPFS for distributed file storage.",
-      "Migrated document retrieval from FAISS to persistent Qdrant using deterministic per-chunk IDs and per-user filters; added rollback when vector indexing succeeds but ResilientDB metadata persistence fails."
+      "Implemented a RAG document assistant with LangChain document chunking, embedding generation and QDrant Storage, vector search returning source-attributed answers per user's isolated file set."
     ]
   },
   {
