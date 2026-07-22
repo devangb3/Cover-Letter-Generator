@@ -812,23 +812,8 @@ textarea {
 }
 
 .recruiting-email-header {
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 18px;
-}
-
-.recruiting-email-header > div {
-  min-width: 0;
-}
-
-.result-eyebrow {
-  display: block;
-  margin-bottom: 5px;
-  color: var(--amber);
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  justify-content: flex-end;
+  margin-bottom: 12px;
 }
 
 .copy-email-btn {
@@ -1031,18 +1016,16 @@ textarea {
   line-height: 1.5;
 }
 
-.qa-answer {
-  font-size: 0.9rem;
-  line-height: 1.8;
-  color: var(--text);
+.qa-answer-editor {
+  min-height: 132px;
+  border-color: rgba(139, 92, 246, 0.3);
+  line-height: 1.75;
+  white-space: pre-wrap;
 }
 
-.qa-answer p {
-  margin: 0 0 7px 0;
-}
-
-.qa-answer p:last-child {
-  margin-bottom: 0;
+.qa-answer-editor:focus {
+  border-color: var(--violet);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.16);
 }
 
 /* ─── Responsive ──────────────────────────────────── */

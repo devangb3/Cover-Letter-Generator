@@ -12,7 +12,7 @@ function setField(container, id, value) {
   });
 }
 
-describe('AI request cancellation', () => {
+describe('App AI workflows', () => {
   let container;
   let root;
 
@@ -84,5 +84,43 @@ describe('AI request cancellation', () => {
     expect(container.querySelector('.header-btn-stop')).toBeNull();
     expect(container.querySelector('.model-select-inline').disabled).toBe(false);
     expect(container.querySelector('.error-message')).toBeNull();
+  });
+
+  it('keeps each generated application answer editable', async () => {
+    setField(container, 'jobQuestions', 'Why this company?');
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        answers: [{ question: 'Why this company?', answer: 'Original answer' }],
+      }),
+    });
+
+    await act(async () => {
+      Simulate.click(container.querySelector('[title="Answer application questions"]'));
+    });
+
+    const answerEditor = container.querySelector('#questionAnswerEditor-0');
+    expect(answerEditor.value).toBe('Original answer');
+
+    act(() => {
+      Simulate.change(answerEditor, { target: { value: 'Edited answer' } });
+    });
+
+    expect(answerEditor.value).toBe('Edited answer');
+  });
+
+  it('omits the recruiting email heading while retaining the copy action', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ subject: 'Hello', body: 'Email body' }),
+    });
+
+    await act(async () => {
+      Simulate.click(container.querySelector('[title="Draft an email to the recruiting team"]'));
+    });
+
+    expect(container.textContent).not.toContain('Ready to personalize and send');
+    expect(container.textContent).not.toContain('Recruiting Outreach Email');
+    expect(container.querySelector('[title="Copy subject and email body"]')).not.toBeNull();
   });
 });

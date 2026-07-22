@@ -287,15 +287,6 @@ function App() {
 
   /* ─── Helpers ───────────────────────────────────── */
 
-  const renderTextContent = (text) => {
-    if (!text) return <p>No data available</p>;
-    if (typeof text === 'string') {
-      return text.split('\n\n').map((paragraph, index) => <p key={index}>{paragraph}</p>);
-    }
-    if (typeof text === 'object') return <p>{JSON.stringify(text)}</p>;
-    return <p>{String(text)}</p>;
-  };
-
   const formatResumeWarning = (warning) => {
     if (!warning) return '';
     return String(warning).split('Latest PDF result:')[0].trim();
@@ -351,6 +342,12 @@ function App() {
     setLoadingAction((currentAction) => (
       currentAction === request.action ? null : currentAction
     ));
+  };
+
+  const handleQuestionAnswerChange = (index, answer) => {
+    setQuestionAnswers((currentAnswers) => currentAnswers.map((item, itemIndex) => (
+      itemIndex === index ? { ...item, answer } : item
+    )));
   };
 
   /* ─── Action handlers ───────────────────────────── */
@@ -504,7 +501,12 @@ function App() {
       });
       const data = await res.json();
       if (!res.ok || data.error) { setQuestionError(data.error || 'Failed to answer application questions'); return; }
-      const answers = Array.isArray(data.answers) ? data.answers : [];
+      const answers = Array.isArray(data.answers)
+        ? data.answers.map((item) => ({
+          ...item,
+          answer: typeof item.answer === 'string' ? item.answer : JSON.stringify(item.answer ?? ''),
+        }))
+        : [];
       if (!answers.length) { setQuestionError('No answers were returned.'); return; }
       setQuestionAnswers(answers);
       setActiveOutputTab('answers');
@@ -804,7 +806,14 @@ function App() {
                   <div className="qa-card" key={`${item.question}-${index}`}>
                     <div className="qa-card-num">Question {index + 1}</div>
                     <p className="qa-question">{item.question}</p>
-                    <div className="qa-answer">{renderTextContent(item.answer)}</div>
+                    <textarea
+                      id={`questionAnswerEditor-${index}`}
+                      className="qa-answer-editor"
+                      value={item.answer}
+                      onChange={(e) => handleQuestionAnswerChange(index, e.target.value)}
+                      rows="6"
+                      aria-label={`Answer to question ${index + 1}`}
+                    />
                   </div>
                 ))}
               </div>
@@ -815,10 +824,6 @@ function App() {
           {activeOutputTab === 'email' && recruitingEmailDraft && (
             <div className="result-section recruiting-email-section">
               <div className="result-section-header recruiting-email-header">
-                <div>
-                  <span className="result-eyebrow">Ready to personalize and send</span>
-                  <h2 className="result-section-title amber">Recruiting Outreach Email</h2>
-                </div>
                 <button
                   type="button"
                   className="copy-email-btn"
