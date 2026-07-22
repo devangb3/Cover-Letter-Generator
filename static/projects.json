@@ -209,6 +209,29 @@
     ]
   },
   {
+    "id": "transit-dispatch",
+    "title": "Transit Dispatch - Multi-Agency Arrival Alerts",
+    "url": "https://github.com/devangb3/Travel-Notifs",
+    "url_label": "GitHub",
+    "context": "Personal Project",
+    "description": "Built an invite-only transit arrival notification service for DART, Unitrans, and Yolobus that plans one-time or recurring trips and monitors selected boarding legs for predicted-arrival changes.",
+    "technologies": [
+      "Python",
+      "FastAPI",
+      "Google Maps Platform",
+      "SQLite",
+      "Telegram",
+      "Resend",
+      "Docker",
+      "Caddy"
+    ],
+    "highlights": [
+      "Integrated Google Places and Routes through one transit provider, with agency-local timezone handling and demo itineraries that work without API keys.",
+      "Built an async worker for milestone, ETA-change, cancellation, stale-feed, and recovery alerts, with persisted alert state and idempotent Telegram/email delivery.",
+      "Implemented single-use invitations with signed sessions, single-use Telegram pairing, and a responsive dashboard that lazy-loads paused and past trips."
+    ]
+  },
+  {
     "id": "algotrade",
     "title": "HammerTrade - Algorithmic Strategy Execution Platform",
     "url": "",
@@ -276,22 +299,24 @@
   {
     "id": "resshare",
     "title": "ResShare - Decentralized File Sharing System",
-    "url": "https://github.com/devangb3/ResShareDeployable",
+    "url": "https://github.com/ResilientApp/ResShare",
     "url_label": "GitHub",
     "context": "Apache Foundation - ResilientDB",
-    "description": "Built a decentralized file-sharing platform on ResilientDB and IPFS with a RAG-powered document assistant: Sentence Transformers generate embeddings, FAISS powers retrieval, and LangChain orchestrates chunking and source-attributed answer generation.",
+    "description": "Built a decentralized file-sharing platform on ResilientDB and IPFS with a source-attributed document assistant using Gemini embeddings, persistent Qdrant retrieval, stable per-chunk IDs, and per-user payload filters.",
     "technologies": [
       "Python",
       "Flask",
       "IPFS",
       "ResilientDB",
+      "Qdrant",
+      "Gemini API",
       "React",
       "Distributed Systems",
       "RAG"
     ],
     "highlights": [
       "Built file upload, download, folder management, and user-level sharing workflows using ResilientDB for metadata and IPFS for distributed file storage.",
-      "Implemented a RAG document assistant with Sentence Transformers embeddings, FAISS vector search, and LangChain chunking pipelines, returning source-attributed answers per user's isolated file set."
+      "Implemented a RAG document assistant with LangChain document chunking, embedding generation and QDrant Storage, vector search returning source-attributed answers per user's isolated file set."
     ]
   },
   {
