@@ -360,7 +360,7 @@
     "highlights": [
       "Implemented three-role authentication (partner, borrower, admin) with JWT, auto-provisioned borrower accounts with temporary passwords, pending-approval partner signup, and secure email-link password reset.",
       "Built a drag-and-drop admin Kanban pipeline using dnd-kit with stage/substage management, lender assignment, decline-with-reason flows, and forward-only commission lifecycle (pending \u2192 earned \u2192 paid).",
-      "Added CSV exports for deals, partners, borrowers, and commissions; Dockerized the backend with PostgreSQL; deployed the frontend to Vercel."
+      "Added CSV exports for deals, partners, borrowers, and commissions; containerized the backend using Docker with PostgreSQL database; deployed the frontend to Vercel."
     ]
   },
   {

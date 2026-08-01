@@ -14,7 +14,7 @@ The app now uses **OpenRouter only** for LLM generation, with the allowed model 
 - Backend model validation (rejects unknown slugs)
 - React frontend with model dropdown fetched from backend
 - PDF generation and download
-- Dockerized deployment
+- Containerized deployment using Docker
 
 ## Architecture
 

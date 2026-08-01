@@ -41,7 +41,7 @@ experience:
     dates: Oct 2025 -- Present
     location: Davis, CA
     bullets:
-      - Developed end-to-end AI evaluation infrastructure for agentic systems, using Python APIs, MongoDB persistence, Dockerized execution, and observability workflows for repeatable model-quality measurement.
+      - Developed end-to-end AI evaluation infrastructure for agentic systems, using Python APIs, MongoDB persistence, containerized execution, and observability for model-quality measurement.
       - Built an automated prompt optimization pipeline that analyzes agentic traces and iteratively improve prompts, achieving a 6.63% performance lift for conversational agents on MultiChallenge benchmark.
       - Engineered agent harnesses for execution, tool-use tracing, hidden-state management, deterministic grading, and failure analysis across coding, interactive tool-calling and deep research workflows.
     supporting_projects:
