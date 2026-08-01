@@ -64,7 +64,7 @@
   },
   {
     "id": "cyber-bench",
-    "title": "Cyber-Bench - Versioned Cybersecurity Agent Benchmark",
+    "title": "Cyber-Bench - Web CTF and Memory Vulnerability Benchmark",
     "url": "https://github.com/PilotcrewAI/Cyber-Bench",
     "url_label": "GitHub",
     "context": "",
