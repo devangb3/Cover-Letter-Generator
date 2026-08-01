@@ -64,23 +64,46 @@
   },
   {
     "id": "cyber-bench",
-    "title": "Cyber-Bench - Web CTF and Memory Vulnerability Benchmark",
+    "title": "Cyber-Bench - Versioned Cybersecurity Agent Benchmark",
     "url": "https://github.com/PilotcrewAI/Cyber-Bench",
     "url_label": "GitHub",
     "context": "",
-    "description": "Built a two-benchmark cybersecurity evaluation suite for LLM agents: Cyber-Bench Web-5 for live multi-service web CTF exploitation, and a Memory Vulnerability Benchmark for reproducing ARVO dataset sanitizer-detected bugs, both with deterministic scoring and no LLM judge in the correctness path.",
+    "description": "Contributed to and expanded a Harbor-compatible cybersecurity benchmark suite for evaluating agents across web exploitation, authentication and protocol flaws, forensics, and memory-safety challenges using self-contained task packages and deterministic verification.",
     "technologies": [
       "Python",
+      "Harbor",
       "Docker",
       "OpenRouter",
-      "OpenCode",
       "Cybersecurity",
       "Benchmarking"
     ],
     "highlights": [
-      "Built Cyber-Bench Web-5 with isolated Docker attacker/target networks, stable gateway URLs, and a deterministic scorer",
-      "Built a Memory Vulnerability Benchmark over ARVO dataset tasks that scores binary success by checking for ASAN, MSAN, or UBSan sanitizer signatures.",
-      "Added OpenCode harness support with isolated workspaces, guarded helper commands, and a browser-based transcript viewer for inspecting agent run artifacts."
+      "Added and hardened task packages with task-specific instructions, containerized environments, reference solutions, and deterministic graders across multiple cybersecurity challenge families.",
+      "Helped organize the repository into versioned V1, V2, and V3 tasksets with explicit package-ownership boundaries and separate run paths.",
+      "Standardized task authorization guidance and CTF time limits, and added maintainer instructions for repeatable task authoring and validation."
+    ]
+  },
+  {
+    "id": "registry-lens",
+    "title": "Registry Lens - ClinicalTrials.gov Visualization",
+    "url": "https://github.com/devangb3/Trials-Visualization",
+    "url_label": "GitHub",
+    "context": "",
+    "description": "Built a full-stack research application that converts natural-language clinical-trial questions into typed visualizations grounded in live ClinicalTrials.gov records.",
+    "technologies": [
+      "Python",
+      "FastAPI",
+      "Pydantic",
+      "React",
+      "OpenAI",
+      "ClinicalTrials.gov",
+      "Docker",
+      "GCP Cloud Run"
+    ],
+    "highlights": [
+      "Constrained the LLM to structured query planning while deterministic Python performs source retrieval, filtering, aggregation, citation construction, and response validation.",
+      "Implemented six typed visualization contracts with provenance, bounded study citations, explicit filter overrides, and clearly marked partial results.",
+      "Built and tested the React interface, packaged the frontend and API in one production container, and deployed the application on Google Cloud Run."
     ]
   },
   {
