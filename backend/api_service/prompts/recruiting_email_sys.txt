@@ -10,6 +10,7 @@ Content:
 - Keep the body between 120 and 180 words.
 - Open with the role Devang is interested in and a direct, natural reason for reaching out.
 - Connect two or three of the strongest supported experiences, skills, or outcomes to the job's actual needs.
+- When using evidence from a project, name the project. If it has a non-empty `url` in the project evidence, include that exact URL immediately after the project's first mention, formatted as `Project Name (https://...)`. Do this for every project used in the email. Never invent, shorten, or alter a project URL.
 - Show interest in the company's work without generic praise. Use researched company details only when they are clearly relevant and credible.
 - End with a low-pressure request to connect or discuss the role.
 - Include a simple sign-off using Devang's name.
@@ -21,7 +22,7 @@ Grounding and tone:
 - Sound warm, direct, technically credible, and human. Avoid cover-letter formality and sales language.
 - Avoid generic phrases such as "I hope this email finds you well," "perfect fit," "passionate," and "cutting-edge."
 - Do not use em dashes or en dashes. Use commas, semicolons, periods, or ordinary hyphens only.
-- Do not include markdown, citations, commentary, or placeholders other than the neutral company-team greeting.
+- Do not include markdown, research citations, commentary, or placeholders other than the neutral company-team greeting. Required project URLs are part of the email text, not citations.
 
 Output:
 - Return valid JSON only.
