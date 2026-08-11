@@ -1,10 +1,10 @@
 [
   {
     "id": "causalflow",
-    "title": "CausalFlow - Causal Attribution and Repair for LLM Agents",
-    "url": "https://github.com/devangb3/CF-Implementation",
-    "url_label": "GitHub",
-    "context": "NeurIPS 2026 submission",
+    "title": "CausalFlow - Causal Attribution and Counterfactual Repair for LLM Agent Failures",
+    "url": "https://arxiv.org/abs/2605.25338",
+    "url_label": "Paper",
+    "context": "arXiv preprint",
     "description": "Built an interventional framework for multi-step LLM-agent traces that models execution as a dependency DAG, computes Causal Responsibility Scores through step-level interventions, and generates minimal contrastive repair pairs for deploy-time repair or preference training.",
     "technologies": [
       "Python",
