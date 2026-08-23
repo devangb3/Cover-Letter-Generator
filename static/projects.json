@@ -1,10 +1,10 @@
 [
   {
     "id": "causalflow",
-    "title": "CausalFlow - Causal Attribution and Repair for LLM Agents",
-    "url": "https://github.com/devangb3/CF-Implementation",
-    "url_label": "GitHub",
-    "context": "NeurIPS 2026 submission",
+    "title": "CausalFlow - Causal Attribution and Counterfactual Repair for LLM Agent Failures",
+    "url": "https://arxiv.org/abs/2605.25338",
+    "url_label": "Paper",
+    "context": "arXiv preprint",
     "description": "Built an interventional framework for multi-step LLM-agent traces that models execution as a dependency DAG, computes Causal Responsibility Scores through step-level interventions, and generates minimal contrastive repair pairs for deploy-time repair or preference training.",
     "technologies": [
       "Python",
@@ -68,7 +68,7 @@
     "url": "https://github.com/PilotcrewAI/Cyber-Bench",
     "url_label": "GitHub",
     "context": "",
-    "description": "Contributed to and expanded a Harbor-compatible cybersecurity benchmark suite for evaluating agents across web exploitation, authentication and protocol flaws, forensics, and memory-safety challenges using self-contained task packages and deterministic verification.",
+    "description": "Contributed to and expanded a Harbor-compatible cybersecurity benchmark suite using self-contained task packages, deterministic verification, and evidence-gated calibration across web, defensive, forensic, and supply-chain scenarios.",
     "technologies": [
       "Python",
       "Harbor",
@@ -78,8 +78,25 @@
       "Benchmarking"
     ],
     "highlights": [
-      "Added and hardened task packages with task-specific instructions, containerized environments, reference solutions, and deterministic graders across multiple cybersecurity challenge families.",
-      "Designed an internal Docker network with a gateway sidecar that exposes stable challenge URLs to agents while keeping the benchmark environment off the public internet."
+      "Added and hardened Harbor task packages with task-specific instructions, containerized environments, reference solutions, and deterministic graders across multiple cybersecurity challenge families.",
+      "Designed an internal Docker network with a gateway sidecar that exposes stable challenge URLs to agents while keeping the benchmark environment off the public internet.",
+      "Developed a reusable workflow for synthetic agent benchmark creation—from capability brief to validated task, oracle verification, fairness review, shortcut hardening, and same-revision model calibration."
+    ]
+  },
+  {
+    "id": "dprime-agent",
+    "title": "DPrime Agent - Prime Agent Fork",
+    "url": "https://github.com/devangb3/prime-agent",
+    "url_label": "GitHub",
+    "context": "Open-source fork",
+    "description": "Maintained a small fork of Prime Intellect's Prime Agent with a continuously published Linux x86_64 main build for personal use.",
+    "technologies": [
+      "Shell",
+      "GitHub Actions",
+      "Linux"
+    ],
+    "highlights": [
+      "Added CI and a checksum-verifying launcher with automatic updates, cached-build fallback, and working-directory preservation."
     ]
   },
   {
