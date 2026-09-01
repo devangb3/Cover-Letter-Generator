@@ -6,7 +6,7 @@ openrouter:
       slug: openai/gpt-5.6-luna
     - label: Gemini Flash Lite
       slug: google/gemini-3.5-flash-lite
-    - label: Muse Spark 1.1
-      slug: meta/muse-spark-1.1
-    - label: GLM 5.2
-      slug: z-ai/glm-5.2
+    - label: Muse Spark 1.2
+      slug: meta/muse-spark-1.2
+    - label: GLM 5.3 Flash
+      slug: z-ai/glm-5.3-flash
