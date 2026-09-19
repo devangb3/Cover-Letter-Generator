@@ -213,7 +213,6 @@ def call_openrouter_json(
                 "schema": get_strict_json_schema(response_model),
             },
         },
-        "provider": {"require_parameters": True},
     }
     if max_tokens is not None:
         payload["max_tokens"] = max_tokens

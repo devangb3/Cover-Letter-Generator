@@ -124,7 +124,6 @@ class ProfileTests(unittest.TestCase):
                                    else 'RecruitingEmailDraft')
                 self.assertEqual(payload['response_format']['json_schema']['name'], expected_schema)
                 self.assertIs(payload['response_format']['json_schema']['strict'], True)
-                self.assertEqual(payload['provider'], {'require_parameters': True})
                 self.assertNotIn('max_tokens', payload)
                 self.assertNotIn('temperature', payload)
         draft = {'skills': [], 'experience': [{'id': self.candidate['experience'][0]['id'], 'bullets': ['Designed accessible forms.']}], 'projects': []}

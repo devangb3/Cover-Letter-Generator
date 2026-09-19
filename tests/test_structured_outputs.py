@@ -55,7 +55,6 @@ class StructuredOutputTests(unittest.TestCase):
                 'schema': ai_service.get_strict_json_schema(FullResumeDraft),
             },
         })
-        self.assertEqual(payload['provider'], {'require_parameters': True})
         self.assertEqual(payload['max_tokens'], 4200)
         self.assertEqual(payload['temperature'], 0.75)
         self.assertEqual(payload['tools'], [ai_service.WEB_SEARCH_TOOL])
