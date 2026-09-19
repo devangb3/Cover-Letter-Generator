@@ -1,4 +1,5 @@
 import os
+from backend.storage.local import output_dir
 import json
 import logging
 import traceback
@@ -13,15 +14,7 @@ from reportlab.pdfgen import canvas
 import uuid
 from datetime import datetime
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
 logger = logging.getLogger('pdf_service')
-
-OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output')
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-logger.info(f"Output directory set to: {OUTPUT_DIR}")
 
 def sanitize_filename(filename):
     """
@@ -74,7 +67,7 @@ def generate_cover_letter_pdf(data):
             logger.info("No company name provided, using random ID in filename")
             filename = f"cover_letter_{uuid.uuid4().hex}.pdf"
         
-        file_path = os.path.join(OUTPUT_DIR, filename)
+        file_path = str(output_dir() / filename)
         logger.debug(f"Cover letter PDF will be saved as: {file_path}")
         
         doc = SimpleDocTemplate(file_path, pagesize=letter)

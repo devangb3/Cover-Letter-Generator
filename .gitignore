@@ -13,3 +13,4 @@ application_test/
 artifacts/
 .cursor/
 .codex
+.vscode/

@@ -1,7 +1,7 @@
 import React, { act } from 'react';
 import { Simulate } from 'react-dom/test-utils';
 import { createRoot } from 'react-dom/client';
-import App from './App';
+import { Workspace } from './App';
 
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -32,12 +32,9 @@ describe('App AI workflows', () => {
     document.body.appendChild(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(<App />);
+      root.render(<Workspace profile={{ profile: { name: "Alex Example", email: "alex@example.com", phone: "555-0100" } }} />);
     });
 
-    setField(container, 'name', 'Devang Borkar');
-    setField(container, 'email', 'devang@example.com');
-    setField(container, 'phone', '555-0100');
     setField(container, 'companyName', 'Example Corp');
     setField(container, 'jobDescription', 'Build reliable AI systems.');
   });

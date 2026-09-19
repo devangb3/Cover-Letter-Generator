@@ -1,17 +1,19 @@
-import base64
 import json
 import logging
 import os
 import re
 import traceback
+from typing import Type, TypeVar
 
 import httpx
+from pydantic import BaseModel
+
+from backend.storage.local import get_api_key, get_profile, get_preferences
 
 from backend.api_service.model_config import (
     get_base_url,
     get_default_model,
     is_allowed_model,
-    load_model_config,
 )
 from backend.models.llm_outputs import (
     FullResumeDraft,
@@ -19,25 +21,12 @@ from backend.models.llm_outputs import (
     RecruitingEmailDraft,
 )
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
 logger = logging.getLogger("api_service")
-
-try:
-    load_model_config()
-except Exception as exc:
-    raise RuntimeError(f"Failed to load model configuration: {exc}") from exc
-
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
-if not OPENROUTER_API_KEY:
-    logger.warning("OPENROUTER_API_KEY not set in environment")
+ResponseModel = TypeVar("ResponseModel", bound=BaseModel)
 
 API_SERVICE_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.dirname(API_SERVICE_DIR)
 ROOT_DIR = os.path.dirname(BACKEND_DIR)
-OPTIONAL_PERSONAL_INFO_FIELDS = {"address", "linkedin", "website", "email", "phone"}
 WEB_SEARCH_TOOL = {
     "type": "openrouter:web_search",
     "parameters": {
@@ -46,12 +35,33 @@ WEB_SEARCH_TOOL = {
         "search_context_size": "low",
     },
 }
-EXPERIENCE_OWNED_PROJECT_IDS = {"pilotcrew-gen-eval", "lh-multimodal-svc"}
 
 def get_pydantic_json_schema(model):
     if hasattr(model, "model_json_schema"):
         return model.model_json_schema()
     return model.schema()
+
+
+def get_strict_json_schema(model):
+    """Prepare Pydantic schemas for providers that enforce strict JSON output."""
+    schema = get_pydantic_json_schema(model)
+
+    def normalize(node):
+        node.pop("default", None)
+        if node.get("type") == "object":
+            node["additionalProperties"] = False
+            node["required"] = list(node.get("properties", {}))
+        for key in ("properties", "$defs", "definitions"):
+            for child in node.get(key, {}).values():
+                normalize(child)
+        if isinstance(node.get("items"), dict):
+            normalize(node["items"])
+        for key in ("anyOf", "oneOf", "allOf"):
+            for child in node.get(key, []):
+                normalize(child)
+
+    normalize(schema)
+    return schema
 
 
 def validate_pydantic_model(model, payload):
@@ -64,63 +74,6 @@ def dump_pydantic_model(model_instance):
     if hasattr(model_instance, "model_dump"):
         return model_instance.model_dump()
     return model_instance.dict()
-
-
-def load_project_catalog():
-    """Load renderable project metadata from projects.json."""
-    try:
-        projects_path = os.path.join(ROOT_DIR, "static", "projects.json")
-        logger.info(f"Loading project catalog from: {projects_path}")
-
-        if not os.path.exists(projects_path):
-            logger.error(f"Projects file not found at: {projects_path}")
-            return []
-
-        with open(projects_path, "r", encoding="utf-8") as file:
-            projects = json.load(file)
-
-        if not isinstance(projects, list):
-            logger.warning("projects.json must contain a top-level array")
-            return []
-
-        logger.info("Loaded %s projects from projects.json", len(projects))
-        return projects
-    except Exception as exc:
-        logger.error(f"Error loading project catalog: {exc}")
-        logger.error(traceback.format_exc())
-        return []
-
-
-def load_projects():
-    """Load projects from projects.json and format them for the prompt."""
-    projects = load_project_catalog()
-    if not projects:
-        return ""
-
-    projects_text = "\n\n".join(
-        [
-            "Full project evidence bank:",
-            "Use every project below as candidate evidence. Internally rank the projects against the job description or question, then cite the strongest matching projects in the final answer.",
-            json.dumps(projects, indent=2),
-        ]
-    )
-    logger.info(f"Loaded projects, content length: {len(projects_text)}")
-    return projects_text
-
-
-def load_resume_pdf():
-    """Read resume bytes from static/resume.pdf."""
-    resume_path = os.path.join(
-        ROOT_DIR, "static", "resume.pdf"
-    )
-    logger.info(f"Loading resume from: {resume_path}")
-    if not os.path.exists(resume_path):
-        raise FileNotFoundError(f"Resume file not found at: {resume_path}")
-
-    with open(resume_path, "rb") as file:
-        resume_bytes = file.read()
-    logger.info(f"Loaded resume PDF, size: {len(resume_bytes)} bytes")
-    return resume_bytes
 
 
 def parse_openrouter_content(content):
@@ -152,34 +105,14 @@ def load_instruction(filename):
         return file.read()
 
 
-def build_personal_info_text(personal_info):
-    if not personal_info:
-        return ""
-
-    lines = []
-    for key, value in personal_info.items():
-        if value and key not in OPTIONAL_PERSONAL_INFO_FIELDS:
-            lines.append(f"{key.capitalize()}: {value}")
-
-    if not lines:
-        return ""
-
-    return "About me:\n" + "\n".join(lines)
-
-
 def build_application_context(job_description, company_name, custom_instructions, personal_info):
-    sections = ["My resume is attached as a PDF file in the request."]
-
-    personal_info_text = build_personal_info_text(personal_info)
-    if personal_info_text:
-        sections.append(personal_info_text)
-
-    projects_text = load_projects()
-    if projects_text:
-        logger.info("Projects loaded successfully")
-        sections.append(projects_text)
-    else:
-        logger.warning("No projects loaded")
+    candidate = get_profile()
+    if not candidate:
+        raise ValueError("Save your profile before generating application materials.")
+    sections = ["Verified candidate profile:\n" + json.dumps(candidate, indent=2)]
+    preferences = get_preferences()
+    if preferences.get("instructions"):
+        sections.append("Default writing preferences:\n" + preferences["instructions"])
 
     if job_description:
         sections.append(f"Job Description:\n{job_description.strip()}")
@@ -193,18 +126,13 @@ def build_application_context(job_description, company_name, custom_instructions
     return "\n\n".join(section for section in sections if section)
 
 
-def build_resume_data_url():
-    resume_bytes = load_resume_pdf()
-    resume_data_b64 = base64.b64encode(resume_bytes).decode("utf-8")
-    return f"data:application/pdf;base64,{resume_data_b64}"
-
-
 def call_openrouter(system_instruction, prompt, selected_model, enable_web_search=False):
-    if not OPENROUTER_API_KEY:
-        raise RuntimeError("OPENROUTER_API_KEY not configured")
+    api_key = get_api_key()
+    if not api_key:
+        raise RuntimeError("Save your OpenRouter API key in Settings first.")
 
     if not is_allowed_model(selected_model):
-        raise ValueError(f"Model '{selected_model}' is not allowed by server configuration")
+        raise ValueError("Select a configured model.")
 
     payload = {
         "model": selected_model,
@@ -212,16 +140,7 @@ def call_openrouter(system_instruction, prompt, selected_model, enable_web_searc
             {"role": "system", "content": system_instruction},
             {
                 "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {
-                        "type": "file",
-                        "file": {
-                            "filename": "resume.pdf",
-                            "file_data": build_resume_data_url(),
-                        },
-                    },
-                ],
+                "content": prompt,
             },
         ],
     }
@@ -229,7 +148,7 @@ def call_openrouter(system_instruction, prompt, selected_model, enable_web_searc
         payload["tools"] = [WEB_SEARCH_TOOL]
 
     headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
     http_referer = os.environ.get("OPENROUTER_HTTP_REFERER")
@@ -269,9 +188,16 @@ def call_openrouter_json(
     max_tokens=800,
     temperature=0.2,
     enable_web_search=False,
-):
-    if not OPENROUTER_API_KEY:
-        raise RuntimeError("OPENROUTER_API_KEY not configured")
+    *,
+    response_model: Type[ResponseModel],
+) -> ResponseModel:
+    """Request structured output and return a validated response model."""
+    api_key = get_api_key()
+    if not api_key:
+        raise RuntimeError("Save your OpenRouter API key in Settings first.")
+
+    if not is_allowed_model(selected_model):
+        raise ValueError("Select a configured model.")
 
     payload = {
         "model": selected_model,
@@ -279,14 +205,24 @@ def call_openrouter_json(
             {"role": "system", "content": system_instruction},
             {"role": "user", "content": prompt},
         ],
-        "max_tokens": max_tokens,
-        "temperature": temperature,
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": response_model.__name__,
+                "strict": True,
+                "schema": get_strict_json_schema(response_model),
+            },
+        },
     }
+    if max_tokens is not None:
+        payload["max_tokens"] = max_tokens
+    if temperature is not None:
+        payload["temperature"] = temperature
     if enable_web_search:
         payload["tools"] = [WEB_SEARCH_TOOL]
 
     headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
     endpoint = f"{get_base_url().rstrip('/')}/chat/completions"
@@ -303,7 +239,8 @@ def call_openrouter_json(
     response_text = parse_openrouter_content(message.get("content"))
     if not response_text:
         raise RuntimeError("No response text received from OpenRouter")
-    return response_text
+    json_response = parse_json_response(response_text)
+    return validate_pydantic_model(response_model, json_response)
 
 
 def parse_questions(questions):
@@ -368,8 +305,7 @@ def strip_em_dashes(text: str) -> str:
     return normalize_generated_text(text)
 
 
-def normalize_question_answers(response_payload, original_questions):
-    response_model = validate_pydantic_model(JobQuestionAnswerResponse, response_payload)
+def normalize_question_answers(response_model: JobQuestionAnswerResponse, original_questions):
     answers = response_model.answers
     if len(answers) < len(original_questions):
         raise ValueError("Question answer response did not include an answer for every question")
@@ -471,7 +407,7 @@ def generate_job_question_answers(
         )
         prompt = "\n\n".join(
             [
-                f"Answer the following job application questions for {company_name} in first person as Devang Borkar.",
+                f"Answer the following job application questions for {company_name} in first person as the candidate.",
                 "Return valid JSON only that conforms to this Pydantic-generated JSON schema:",
                 response_schema,
                 "Preserve the original question order.",
@@ -480,14 +416,16 @@ def generate_job_question_answers(
             ]
         )
 
-        response_text = call_openrouter(
+        response = call_openrouter_json(
             system_instruction,
             prompt,
             model,
+            response_model=JobQuestionAnswerResponse,
+            max_tokens=None,
+            temperature=None,
             enable_web_search=True,
         )
-        response_payload = parse_json_response(response_text)
-        normalized_answers = normalize_question_answers(response_payload, parsed_questions)
+        normalized_answers = normalize_question_answers(response, parsed_questions)
 
         return {
             "answers": normalized_answers,
@@ -529,14 +467,15 @@ def generate_recruiting_email(
                 shared_context,
             ]
         )
-        response_text = call_openrouter(
+        draft = call_openrouter_json(
             system_instruction,
             prompt,
             model,
+            response_model=RecruitingEmailDraft,
+            max_tokens=None,
+            temperature=None,
             enable_web_search=True,
         )
-        payload = parse_json_response(response_text)
-        draft = validate_pydantic_model(RecruitingEmailDraft, payload)
         return normalize_generated_text(dump_pydantic_model(draft))
     except Exception as exc:
         logger.error(f"Error generating recruiting email: {exc}")
@@ -545,25 +484,7 @@ def generate_recruiting_email(
 
 
 def build_full_resume_project_catalog(resume_data):
-    catalog_by_id = {}
-    for project in resume_data.get("projects", []):
-        project_id = project.get("id")
-        if project_id:
-            catalog_by_id[project_id] = {
-                **project,
-                "description": "",
-                "technologies": [],
-                "highlights": project.get("bullets", []),
-            }
-
-    for project in load_project_catalog():
-        project_id = project.get("id")
-        if project_id in EXPERIENCE_OWNED_PROJECT_IDS:
-            continue
-        if project_id and project_id not in catalog_by_id:
-            catalog_by_id[project_id] = project
-
-    return list(catalog_by_id.values())
+    return resume_data.get("projects", [])
 
 
 def generate_full_resume_draft(
@@ -590,8 +511,6 @@ def generate_full_resume_draft(
             }
             for entry in resume_data.get("experience", [])
         ]
-        if not mandatory_experience:
-            raise ValueError("No mandatory experience entries were provided")
 
         system_instruction = load_instruction("prompts/full_resume_sys.txt")
         shared_context = build_application_context(
@@ -619,8 +538,8 @@ def generate_full_resume_draft(
                 "The backend will lock the header, education, experience metadata, project metadata, and PDF layout.",
                 f"Mandatory experience ids that must all appear exactly once: {mandatory_ids}.",
                 "Education is always included by the renderer; do not return education.",
-                "Choose exactly 3 projects from the project_catalog unless the retry history asks you to shorten further.",
-                "Use enough supported content to fill a strong one-page resume; avoid sparse drafts.",
+                "Choose up to 3 relevant projects from the project_catalog. Return an empty list when none are available. Never invent entries.",
+                "Use only supported content. Short resumes are valid when the candidate has limited experience.",
                 "Return valid JSON only that conforms to this Pydantic-generated JSON schema:",
                 response_schema,
                 "Resume source data and renderable project catalog:",
@@ -640,21 +559,20 @@ def generate_full_resume_draft(
                     + "\n\n".join(history)
                     + f"\n\nFix this latest error: {last_error}"
                 )
-            response_text = call_openrouter_json(
-                system_instruction,
-                base_prompt + retry_context,
-                model,
-                max_tokens=4200,
-                temperature=0.75,
-                enable_web_search=True,
-            )
             try:
-                payload = parse_json_response(response_text)
-                draft = validate_pydantic_model(FullResumeDraft, payload)
+                draft = call_openrouter_json(
+                    system_instruction,
+                    base_prompt + retry_context,
+                    model,
+                    max_tokens=4200,
+                    temperature=0.75,
+                    enable_web_search=True,
+                    response_model=FullResumeDraft,
+                )
                 return normalize_generated_text(dump_pydantic_model(draft))
-            except Exception as exc:
+            except ValueError as exc:
                 last_error = f"Full resume draft validation error: {exc}"
-                history.append(f"Attempt {attempt} output: {response_text[:4000]}")
+                history.append(f"Attempt {attempt} validation error: {str(exc)[:4000]}")
 
         raise ValueError(f"Unable to generate a valid full resume draft after retries: {last_error}")
     except Exception as exc:
