@@ -8,6 +8,8 @@ import tempfile
 import traceback
 from datetime import datetime
 
+from backend.storage.local import output_dir, data_dir
+
 from pypdf import PdfReader, PdfWriter
 import yaml
 
@@ -128,8 +130,6 @@ def apply_full_resume_draft(resume_data, draft_payload, project_catalog=None):
         selected_projects.append(project)
         seen_project_ids.add(project_id)
 
-    if not selected_projects:
-        raise ValueError("Full resume draft did not select any projects")
     updated_resume["projects"] = selected_projects
 
     return updated_resume
@@ -142,7 +142,7 @@ def _line(text=""):
 def _href(label, url):
     if not url:
         return escape_latex(label)
-    return rf"\href{{{url}}}{{{escape_latex(label)}}}"
+    return rf"\href{{{escape_latex(url)}}}{{{escape_latex(label)}}}"
 
 
 def _italic(text):
@@ -264,7 +264,7 @@ def _render_experience(experience):
 def _project_meta(entry):
     link = ""
     if entry.get("url"):
-        link = rf"\href{{{entry.get('url')}}}{{\textit{{{escape_latex(entry.get('url_label', 'GitHub'))}}}}}"
+        link = rf"\href{{{escape_latex(entry.get('url'))}}}{{\textit{{{escape_latex(entry.get('url_label', 'Link'))}}}}}"
     return link, _italic(entry.get("context", "")) if entry.get("context") else ""
 
 
@@ -334,11 +334,15 @@ def render_resume_tex(resume_data):
             _line(),
         ]
     )
-    lines.extend(_render_skills(resume_data["skills"]))
-    lines.extend(_render_education(resume_data["education"]))
-    lines.extend(_render_experience(resume_data["experience"]))
+    if resume_data["skills"]:
+        lines.extend(_render_skills(resume_data["skills"]))
+    if resume_data["education"]:
+        lines.extend(_render_education(resume_data["education"]))
+    if resume_data["experience"]:
+        lines.extend(_render_experience(resume_data["experience"]))
     lines.append(_line())
-    lines.extend(_render_projects(resume_data["projects"]))
+    if resume_data["projects"]:
+        lines.extend(_render_projects(resume_data["projects"]))
     lines.append(_line(r"\end{document}"))
     return "".join(lines)
 
@@ -354,7 +358,7 @@ def compile_tex_to_pdf(
     min_text_chars: int = 0,
 ):
     try:
-        work_root = os.path.join(os.path.dirname(__file__), "build")
+        work_root = str(data_dir() / "build")
         os.makedirs(work_root, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=work_root) as td:
             tex_path = os.path.join(td, "resume.tex")
@@ -406,7 +410,7 @@ def compile_tex_to_pdf(
                         f"Expand the previous JSON draft toward at least {min_text_chars} extracted text characters while staying on one page."
                     ),
                 }
-            out_dir = os.path.join(os.path.dirname(__file__), "output")
+            out_dir = str(output_dir())
             os.makedirs(out_dir, exist_ok=True)
             filename = _resume_filename(company_name)
             out_path = os.path.join(out_dir, filename)

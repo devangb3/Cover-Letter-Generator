@@ -12,7 +12,7 @@ class JobQuestionAnswer(BaseModel):
         ...,
         description=(
             "A concise first-person answer grounded only in the provided context "
-            "that shows Devang's relevant experience and skills."
+            "that shows the candidate's relevant experience and skills."
         ),
     )
 

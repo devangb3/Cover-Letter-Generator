@@ -1,17 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './App.css';
-
-const API_URL = process.env.REACT_APP_API_URL || 'https://cover-letter-generator-424176252593.us-central1.run.app';
-
-const INITIAL_PERSONAL_INFO = {
-  name: '',
-  email: '',
-  phone: '',
-  address: '',
-  linkedin: '',
-  website: '',
-  github: '',
-};
+import ProfileManager, { API_URL } from './ProfileManager';
 
 const DEFAULT_PANEL_WIDTH = 480;
 const MIN_PANEL_WIDTH = 300;
@@ -23,11 +12,6 @@ function clampPanelWidth(width, containerWidth = MAX_PANEL_WIDTH + MIN_PANEL_WID
     Math.min(MAX_PANEL_WIDTH, containerWidth - MIN_PANEL_WIDTH)
   );
   return Math.max(MIN_PANEL_WIDTH, Math.min(maxWidth, width));
-}
-
-function personalInfoForRequest(personalInfo) {
-  const { github: _uiOnly, ...rest } = personalInfo;
-  return rest;
 }
 
 async function copyTextToClipboard(text) {
@@ -142,48 +126,11 @@ function Spinner() {
   return <span className="spinner" aria-hidden />;
 }
 
-function CopyUrlWidgetButton({ label, textToCopy }) {
-  const trimmed = typeof textToCopy === 'string' ? textToCopy.trim() : '';
-  const handleCopy = async () => {
-    if (!trimmed) return;
-    try { await copyTextToClipboard(trimmed); }
-    catch (err) { console.error('Copy failed:', err); }
-  };
-  return (
-    <button type="button" className="copy-url-widget" onClick={handleCopy} disabled={!trimmed} title="Copy URL" aria-label={`Copy ${label}`}>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-      </svg>
-    </button>
-  );
-}
-
-function PersonalUrlFieldRow({ id, name, label, value, onChange, placeholder }) {
-  return (
-    <div className="form-group">
-      <div className="label-row-with-copy">
-        <label htmlFor={id}>{label}</label>
-        <CopyUrlWidgetButton label={label} textToCopy={value} />
-      </div>
-      <input type="text" id={id} name={name} value={value} onChange={onChange} placeholder={placeholder} />
-    </div>
-  );
-}
-
 function SectionHeader({ icon: Icon, label }) {
-  return (
-    <div className="section-header">
-      <Icon className="section-header-icon" />
-      <span className="section-header-label">{label}</span>
-      <span className="section-header-line" />
-    </div>
-  );
+  return <div className="section-header"><Icon className="section-header-icon" /><span className="section-header-label">{label}</span><span className="section-header-line" /></div>;
 }
 
-/* ─── Main App ────────────────────────────────────── */
-
-function App() {
+export function Workspace({ profile, onEditProfile, onSettings, preferences }) {
   const [jobDescription, setJobDescription] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [customInstructions, setCustomInstructions] = useState('');
@@ -205,7 +152,7 @@ function App() {
   const [resumeWarning, setResumeWarning] = useState(null);
   const [questionError, setQuestionError] = useState(null);
   const [emailError, setEmailError] = useState(null);
-  const [personalInfo, setPersonalInfo] = useState(INITIAL_PERSONAL_INFO);
+  const personalInfo = { ...profile.profile, address: profile.profile.location };
   const activeAiRequestRef = useRef(null);
 
   /* Resize state */
@@ -252,11 +199,6 @@ function App() {
 
   /* ─── Personal info ─────────────────────────────── */
 
-  const handlePersonalInfoChange = (e) => {
-    const { name, value } = e.target;
-    setPersonalInfo((prev) => ({ ...prev, [name]: value }));
-  };
-
   /* ─── Model loading ─────────────────────────────── */
 
   useEffect(() => {
@@ -285,6 +227,10 @@ function App() {
     activeAiRequestRef.current?.controller.abort();
   }, []);
 
+  useEffect(() => {
+    if (preferences?.defaultModel) setSelectedModel(preferences.defaultModel);
+  }, [preferences?.defaultModel]);
+
   /* ─── Helpers ───────────────────────────────────── */
 
   const formatResumeWarning = (warning) => {
@@ -293,9 +239,7 @@ function App() {
   };
 
   const validateSharedFields = () => {
-    if (!personalInfo.name || !personalInfo.email || !personalInfo.phone) {
-      return 'Please provide your name, email, and phone in Personal Info';
-    }
+    if (!personalInfo.name) return 'Please save your name in My Profile';
     if (!companyName.trim()) return 'Please provide the company name';
     if (!jobDescription.trim()) return 'Please provide the job description';
     if (modelLoadError) return 'Unable to load model configuration. Please refresh and try again.';
@@ -307,7 +251,7 @@ function App() {
     jobDescription,
     companyName,
     customInstructions,
-    personalInfo: personalInfoForRequest(personalInfo),
+    personalInfo: personalInfo,
     model: selectedModel,
   });
 
@@ -371,7 +315,7 @@ function App() {
       if (!res.ok || data.error) { setApiError(data.error || 'Failed to generate cover letter'); return; }
       const sanitized = {
         ...data,
-        personalInfo: personalInfoForRequest(personalInfo),
+        personalInfo: personalInfo,
         companyName,
         coverLetter: typeof data.coverLetter === 'string' ? data.coverLetter : JSON.stringify(data.coverLetter),
       };
@@ -397,7 +341,7 @@ function App() {
       const res = await fetch(`${API_URL}/api/generate-pdf`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...coverLetterResult, personalInfo: personalInfoForRequest(personalInfo), companyName, coverLetter: editableCoverLetter }),
+        body: JSON.stringify({ ...coverLetterResult, personalInfo: personalInfo, companyName, coverLetter: editableCoverLetter }),
       });
       const data = await res.json();
       if (!res.ok || data.error) { setPdfError(data.error || 'Failed to generate PDF'); return; }
@@ -615,34 +559,12 @@ function App() {
         >
           <div className="panel-scroll">
 
-            {/* Personal Info */}
             <div className="input-section">
-              <SectionHeader icon={UserIcon} label="Personal Info" />
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="name">Full Name *</label>
-                  <input type="text" id="name" name="name" value={personalInfo.name} onChange={handlePersonalInfoChange} placeholder="Devang Borkar" required />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="phone">Phone *</label>
-                  <input type="tel" id="phone" name="phone" value={personalInfo.phone} onChange={handlePersonalInfoChange} placeholder="+1 (555) 000-0000" required />
-                </div>
-              </div>
-              <div className="form-group">
-                <label htmlFor="email">Email *</label>
-                <input type="email" id="email" name="email" value={personalInfo.email} onChange={handlePersonalInfoChange} placeholder="you@example.com" required />
-              </div>
-              <div className="form-group">
-                <label htmlFor="address">Address</label>
-                <input type="text" id="address" name="address" value={personalInfo.address} onChange={handlePersonalInfoChange} placeholder="City, State" />
-              </div>
-              <div className="form-row">
-                <PersonalUrlFieldRow id="linkedin" name="linkedin" label="LinkedIn" value={personalInfo.linkedin} onChange={handlePersonalInfoChange} placeholder="https://linkedin.com/in/…" />
-                <PersonalUrlFieldRow id="website" name="website" label="Portfolio" value={personalInfo.website} onChange={handlePersonalInfoChange} placeholder="https://yoursite.com" />
-              </div>
-              <PersonalUrlFieldRow id="github" name="github" label="GitHub" value={personalInfo.github} onChange={handlePersonalInfoChange} placeholder="https://github.com/devangb3" />
+              <SectionHeader icon={UserIcon} label="Saved Profile" />
+              <p>Using {personalInfo.name}'s profile</p>
+              <button className="header-btn" onClick={onEditProfile} disabled={isBusy}>Edit profile</button>
+              <button className="header-btn" onClick={onSettings} disabled={isBusy}>Settings</button>
             </div>
-
             <div className="section-sep" />
 
             {/* Job Details */}
@@ -896,4 +818,6 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  return <ProfileManager>{props => <Workspace {...props} />}</ProfileManager>;
+}

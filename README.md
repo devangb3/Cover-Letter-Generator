@@ -1,130 +1,82 @@
 # Cover Letter Generator
 
-A web app that generates personalized cover letters from job descriptions and user details, then renders the output into a downloadable PDF.
+A local application for creating cover letters, screening-question answers, recruiting emails, and tailored resume PDFs from your saved background and a job description.
 
-The app now uses **OpenRouter only** for LLM generation, with the allowed model list defined in YAML and surfaced in the UI dropdown.
+Bring your own **OpenRouter API key**. On first launch, upload a resume for AI-assisted extraction or enter your information manually. Review and save your profile once; subsequent launches open the application workspace directly. **My Profile** lets you edit your information whenever it changes.
 
-## Features
+## Clone and launch
 
-- OpenRouter-powered cover letter generation
-- Job application question answering using the same resume/projects context
-- Recruiting-team outreach email drafting using the same resume/projects context
-- Full resume generation from structured `resume.yaml`
-- YAML-driven model allowlist (`config/model.yaml`)
-- Backend model validation (rejects unknown slugs)
-- React frontend with model dropdown fetched from backend
-- PDF generation and download
-- Containerized deployment using Docker
-
-## Architecture
-
-- `frontend/`: React app
-- `backend/`: Flask app serving APIs + frontend build
-- `backend/api_service/`: Prompt construction, model config loading, OpenRouter calls
-- `backend/models/`: Pydantic schemas for structured LLM outputs
-- `pdf_service/`: ReportLab PDF generation
-- `resume.yaml`: Structured resume source used for tailored resume generation
-- `config/`: YAML model configuration
-- `static/`: Resume and static assets
-
-## Prerequisites
-
-- Python 3.9+
-- Node.js 18+
-- OpenRouter API key
-
-## Setup
-
-### 1. Install backend dependencies
+Requirements: Python 3.9+, Node.js with npm, and an OpenRouter account with credits. These commands use Bash (Linux/macOS, or WSL on Windows).
 
 ```bash
-python -m venv .venv
+git clone https://github.com/devangb3/Cover-Letter-Generator.git
+cd Cover-Letter-Generator
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
+npm --prefix frontend ci
+bash run.sh
 ```
 
-### 2. Install frontend dependencies
+Open **http://127.0.0.1:5000**. The launcher builds React and starts one local Flask process serving both the interface and API. Stop it with Ctrl+C. Set `PORT=5001 bash run.sh` to use a different port.
 
-```bash
-cd frontend
-npm install
-cd ..
-```
+The launcher does not create or modify `.env`. Configure your key in the setup screen. An existing `OPENROUTER_API_KEY` environment variable is also supported; a saved key takes precedence.
 
-### 3. Configure environment variables
+Tailored resume PDFs additionally require `pdflatex` with the packages used by the template (including enumitem, titlesec, and hyperref), or Tectonic. On Debian/Ubuntu these are available through `texlive-latex-base`, `texlive-latex-recommended`, `texlive-latex-extra`, and `texlive-fonts-recommended`. Cover letters and their PDFs, question answers, and emails work without LaTeX.
 
-Create `.env`:
+## First-time setup
 
-```bash
-OPENROUTER_API_KEY=your_openrouter_api_key_here
-# Optional attribution headers:
-# OPENROUTER_HTTP_REFERER=https://your-app-domain.com
-# OPENROUTER_APP_TITLE=Cover Letter Generator
-```
+1. Save your OpenRouter key and choose a default model. Saving stores the key; the first AI request checks it with the provider.
+2. Upload a **text-based PDF**, up to 10 MB and 20 pages. The app extracts its text locally, then asks your selected model to structure it. Scanned/image-only and encrypted PDFs require a different PDF or manual entry.
+3. Review imported sections and apply the ones you want. Correct any extraction mistakes and add supporting achievements or projects.
+4. Save your profile. Only your name is required; experience, projects, education, skills, and contact fields are optional.
+5. Enter the company, job description, application questions, and instructions for the current job. Generate and edit the outputs.
 
-### 4. Configure model catalog
+The profile contains shared facts. Settings contain the default model and writing instructions. The application workspace contains job-specific inputs. Application inputs and generated text currently live in the browser session; they are not an application-history database.
 
-Edit `config/model.yaml`:
+## Editing and backups
 
-```yaml
-openrouter:
-  base_url: https://openrouter.ai/api/v1
-  default_model: openai/gpt-4.1-mini
-  models:
-    - label: GPT-4.1 Mini
-      slug: openai/gpt-4.1-mini
-```
+Use **Edit profile** to update saved information. Edits take effect after **Save profile**; **Cancel** discards them. Importing another resume produces a separate draft and never overwrites your saved profile automatically. Apply sections individually, preserving manually added sections where needed.
 
-### 5. Add resume context
+**Export saved profile** downloads a JSON backup without your API key. **Import profile backup** opens that information for review before saving. Settings lets you replace the key or change writing defaults. Generation reads the saved profile and never modifies it.
 
-Place your resume PDF at `static/resume.pdf` for cover-letter, question-answer, and recruiting-email context.
-Edit `resume.yaml` for generated resume content; the backend renders full resume PDFs from this YAML file.
+## Local data and privacy
 
-## Running
+Data is stored separately from the repository:
 
-### Quick start
+- Linux: `~/.local/share/cover-letter-generator` (or `$XDG_DATA_HOME/cover-letter-generator`)
+- macOS: `~/Library/Application Support/CoverLetterGenerator`
+- Windows: `%LOCALAPPDATA%/CoverLetterGenerator`
 
-```bash
-chmod +x run.sh
-./run.sh
-```
+Set `COVER_LETTER_DATA_DIR` to choose another location. Profiles and preferences live in SQLite; the API key is in a separate plaintext file with owner-only permissions on POSIX. Generated PDFs and logs also live under this directory. Keep the directory private and back it up appropriately. Updating the checkout does not replace it.
 
-- Frontend: `http://localhost:3002`
-- Backend: `http://localhost:5000`
+The interface and storage are local, but **AI requests send resume text/profile context to OpenRouter and the selected provider**, using your credits. Uploaded PDFs are processed in memory and are not retained. The server binds to loopback and expects same-origin access; this is a single-user local application, not a hosted multi-user service.
 
-### Manual
+The legacy `resume.yaml`, `static/resume.pdf`, and `static/projects.json` are not loaded by the application. Existing personal source files are retained, but new installations start with no profile. Import your resume through setup to migrate your background.
+
+## Development and verification
 
 ```bash
 source .venv/bin/activate
-python backend/app.py
+python -m unittest discover -s tests -v
+npm --prefix frontend test -- --watchAll=false --runInBand
+npm --prefix frontend run build
 ```
 
-In another terminal:
+`config/model.yaml` defines the allowed models. The default frontend uses relative `/api` URLs, so it never falls back to a hosted backend. Rebuild after frontend changes. The local launcher serves the built frontend rather than running a separate development server.
 
-```bash
-cd frontend
-PORT=3002 npm start
-```
+API additions: `GET/PUT /api/profile`, `POST /api/profile/extract`, `POST /api/profile/validate`, `GET/PUT /api/settings`. Generation endpoints resolve identity and evidence from the saved profile; request-provided identity cannot substitute another candidate.
 
-### Docker
+## Backend structure
 
-```bash
-docker build -t cover-letter-generator .
-docker run -p 8080:8080 -e OPENROUTER_API_KEY=your_key_here cover-letter-generator
-```
+- `backend/app.py`: WSGI entry point and local launcher.
+- `backend/factory.py`: `create_app(config)` constructs Flask and registers the routes and request handlers. Tests create applications with `TESTING=True` without starting a server.
+- `backend/http.py`: local-origin/profile guards and shared HTTP error translation.
+- `backend/routes/`: thin Flask blueprints for generation, profiles, settings/models, document access, and frontend assets.
+- `backend/services/`: generation workflows, resume retries, resume extraction, settings validation, and candidate views. These modules do not depend on Flask.
+- `backend/models/`: candidate validation schemas and structured LLM output schemas.
+- `backend/storage/local.py`: SQLite persistence, credential files, and local data paths.
+- `backend/api_service/`: existing OpenRouter integration, prompt construction, and model configuration.
+- `pdf_service/`: PDF rendering and compilation used by the workflow services.
 
-## API Endpoints
-
-- `GET /api/models`: Returns configured model list and default model
-- `POST /api/analyze`: Generates cover letter text using selected model slug (or default)
-- `POST /api/answer-questions`: Generates answers for pasted application questions using the same candidate context
-- `POST /api/draft-recruiting-email`: Drafts a subject and email body for the target company's recruiting team
-- `POST /api/generate-full-resume`: Generates a full resume PDF from `resume.yaml`
-- `POST /api/generate-pdf`: Builds PDF from generated text
-- `GET /api/download/<filename>`: Downloads generated PDF
-
-## Notes
-
-- Backend enforces model allowlist from `config/model.yaml`.
-- Backend loads YAML at startup and fails fast if invalid.
-- `POST /api/analyze` returns `400` for unknown model slugs.
+HTTP routes translate requests and responses; services own workflow decisions; storage owns persistence. New workflows should follow that direction rather than adding logic to the entry point. API URLs and the `backend.app:app` entry point remain unchanged.
