@@ -63,6 +63,15 @@ function BriefcaseIcon({ className }) {
   );
 }
 
+function SettingsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M9 3h6l.5 3 2 1.2 2.8-1 3 5.2-2.3 2v2.3l2.3 2-3 5.2-2.8-1-2 1.2-.5 3H9l-.5-3-2-1.2-2.8 1-3-5.2 2.3-2v-2.3l-2.3-2 3-5.2 2.8 1 2-1.2Z" transform="translate(2.4 0) scale(.8)" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
 function ListIcon({ className }) {
   return (
     <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -547,6 +556,14 @@ export function Workspace({ profile, onEditProfile, onSettings, preferences }) {
             </>
           )}
         </div>
+        <nav className="header-account" aria-label="Account">
+          <button type="button" className="account-icon-button" onClick={onEditProfile} disabled={isBusy} aria-label="Edit profile" title={`Edit profile — ${personalInfo.name}`}>
+            <UserIcon />
+          </button>
+          <button type="button" className="account-icon-button" onClick={onSettings} disabled={isBusy} aria-label="Settings" title="Settings">
+            <SettingsIcon />
+          </button>
+        </nav>
       </header>
 
       {/* ── Body ──────────────────────────────────── */}
@@ -558,14 +575,6 @@ export function Workspace({ profile, onEditProfile, onSettings, preferences }) {
           style={{ width: panelWidth, minWidth: panelWidth, maxWidth: panelWidth }}
         >
           <div className="panel-scroll">
-
-            <div className="input-section">
-              <SectionHeader icon={UserIcon} label="Saved Profile" />
-              <p>Using {personalInfo.name}'s profile</p>
-              <button className="header-btn" onClick={onEditProfile} disabled={isBusy}>Edit profile</button>
-              <button className="header-btn" onClick={onSettings} disabled={isBusy}>Settings</button>
-            </div>
-            <div className="section-sep" />
 
             {/* Job Details */}
             <div className="input-section">

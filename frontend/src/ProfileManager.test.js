@@ -19,7 +19,7 @@ describe('local profile onboarding', () => {
     global.fetch = jest.fn(async url => response(url.endsWith('/profile') ? { profile } : url.endsWith('/settings') ? { ...settings, hasApiKey } : models));
   }
   async function clickText(text) {
-    await act(async () => { Simulate.click([...container.querySelectorAll('button')].find(b => b.textContent === text)); });
+    await act(async () => { Simulate.click([...container.querySelectorAll('button')].find(b => b.textContent === text || b.getAttribute('aria-label') === text)); });
   }
   it('opens connection setup on a clean installation', async () => {
     mockState(null, false);
@@ -33,7 +33,7 @@ describe('local profile onboarding', () => {
   it('loads a saved profile directly and cancels edits without losing job inputs', async () => {
     mockState(candidate);
     await act(async () => root.render(<App />));
-    expect(container.textContent).toContain("Using Alex Example's profile");
+    expect(container.querySelector('.header-account [aria-label="Edit profile"]').title).toContain('Alex Example');
     act(() => Simulate.change(container.querySelector('#companyName'), { target: { value: 'Example Company' } }));
     await clickText('Edit profile');
     act(() => Simulate.change(container.querySelector('#contact-name'), { target: { value: 'Unsaved name' } }));
@@ -51,7 +51,7 @@ describe('local profile onboarding', () => {
     await act(async () => Simulate.submit(container.querySelector('form')));
     const write = global.fetch.mock.calls.find(([, options]) => options?.method === 'PUT');
     expect(JSON.parse(write[1].body).profile.name).toBe('Alex Example');
-    expect(container.textContent).toContain("Using Alex Example's profile");
+    expect(container.querySelector('.header-account [aria-label="Edit profile"]').title).toContain('Alex Example');
   });
 
   it('reviews extraction without overwriting saved or manually entered sections', async () => {
