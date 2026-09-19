@@ -30,6 +30,22 @@ describe('local profile onboarding', () => {
     expect(container.textContent).toContain('Your experience. Ready for every role.');
     expect(container.querySelector('#contact-name').value).toBe('');
   });
+  it.each(['', 'removed/model'])('preserves the effective default when saved model is %s', async savedModel => {
+    const preferences = { defaultModel: savedModel, instructions: '' };
+    const catalog = { models: [{ slug: 'model-a', label: 'Model A' }, { slug: 'model-b', label: 'Model B' }], defaultModel: 'model-b' };
+    global.fetch = jest.fn(async url => response(url.endsWith('/profile') ? { profile: candidate } : url.endsWith('/settings') ? { hasApiKey: true, preferences } : catalog));
+    await act(async () => root.render(<App />));
+    await clickText('Settings');
+    expect(container.querySelector('.profile-shell select').value).toBe('model-b');
+    act(() => Simulate.change(container.querySelector('.profile-shell textarea'), { target: { value: 'Be concise.' } }));
+    global.fetch.mockResolvedValueOnce(response({ hasApiKey: true, preferences: { defaultModel: 'model-b', instructions: 'Be concise.' } }));
+    await act(async () => Simulate.submit(container.querySelector('.profile-shell form')));
+    const write = global.fetch.mock.calls.find(([, options]) => options?.method === 'PUT');
+    expect(JSON.parse(write[1].body).preferences).toEqual({ defaultModel: 'model-b', instructions: 'Be concise.' });
+    await clickText('Back to application');
+    await clickText('Settings');
+    expect(container.querySelector('.profile-shell select').value).toBe('model-b');
+  });
   it('loads a saved profile directly and cancels edits without losing job inputs', async () => {
     mockState(candidate);
     await act(async () => root.render(<App />));

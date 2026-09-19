@@ -30,4 +30,7 @@ def update_settings(payload):
 
 
 def resolve_model(model=None):
-    return model or store.get_preferences().get("defaultModel") or get_default_model()
+    if model:
+        return model
+    saved_model = store.get_preferences().get("defaultModel")
+    return saved_model if is_allowed_model(saved_model) else get_default_model()

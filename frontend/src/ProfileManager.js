@@ -34,6 +34,7 @@ export default function ProfileManager({ children }) {
   const [profile, setProfile] = useState(null);
   const [settings, setSettings] = useState(null);
   const [models, setModels] = useState([]);
+  const [defaultModel, setDefaultModel] = useState('');
   const [page, setPage] = useState('loading');
   const [draft, setDraft] = useState(EMPTY);
   const [preferences, setPreferences] = useState({ defaultModel: '', instructions: '' });
@@ -49,7 +50,8 @@ export default function ProfileManager({ children }) {
     try {
       const [p, s, m] = await Promise.all([api('profile'), api('settings'), api('models')]);
       setProfile(p.profile); setDraft(p.profile || EMPTY); setSettings(s); setModels(m.models);
-      setPreferences({ ...s.preferences, defaultModel: s.preferences.defaultModel || m.defaultModel });
+      setDefaultModel(m.defaultModel);
+      setPreferences({ ...s.preferences, defaultModel: m.defaultModel });
       setPage(!s.hasApiKey ? 'settings' : !p.profile ? 'profile' : 'workspace');
     } catch (e) { setError(e.message); }
   }
@@ -60,7 +62,7 @@ export default function ProfileManager({ children }) {
     try { await action(); } catch (e) { setError(e.message); } finally { setBusy(false); }
   }
   function editProfile() { setDraft(profile || EMPTY); setExtracted(null); setPage('profile'); setError(''); setNotice(''); }
-  function openSettings() { setPreferences({ ...settings.preferences, defaultModel: settings.preferences.defaultModel || models[0]?.slug || '' }); setPage('settings'); setError(''); setNotice(''); }
+  function openSettings() { setPreferences({ ...settings.preferences, defaultModel: models.some(model => model.slug === settings.preferences.defaultModel) ? settings.preferences.defaultModel : defaultModel }); setPage('settings'); setError(''); setNotice(''); }
   function cancel() { setKey(''); setExtracted(null); setError(''); setNotice(''); setPage(profile && settings.hasApiKey ? 'workspace' : 'profile'); }
 
   if (page === 'loading') return <main className="profile-shell"><h1>Opening your workspace…</h1>{error && <><p role="alert">{error}</p><button onClick={load}>Retry</button></>}</main>;

@@ -10,6 +10,8 @@ from backend.factory import create_app
 from backend.storage import local as store
 from backend.models.profile import Candidate, normalize_candidate
 from backend.services.profile import personal_info
+from backend.services.settings import resolve_model
+from backend.api_service.model_config import get_default_model, get_models
 from backend.api_service import ai_service
 from pdf_service.resume_generator import apply_full_resume_draft, render_resume_tex
 from reportlab.pdfgen import canvas
@@ -76,6 +78,29 @@ class ProfileTests(unittest.TestCase):
                 self.assertNotIn('Devang', prompt)
                 self.assertNotIn('Wrong Person', prompt)
                 self.assertNotIn('file_data', prompt)
+
+    def test_stale_saved_model_falls_back_for_catalog_and_generation(self):
+        store.write_value('preferences', {'defaultModel': 'removed/model', 'instructions': ''})
+        catalog = self.client.get('/api/models').json
+        self.assertEqual(catalog['defaultModel'], get_default_model())
+        self.assertIn(catalog['defaultModel'], [model['slug'] for model in catalog['models']])
+        self.save()
+        store.save_api_key('test-key')
+        with patch.object(ai_service.httpx, 'post') as post:
+            post.return_value.status_code = 200
+            post.return_value.json.return_value = {'choices': [{'message': {'content': 'A supported letter.'}}]}
+            result = self.client.post('/api/analyze', json={'companyName': 'Example', 'jobDescription': 'Design interfaces'})
+            self.assertEqual(result.status_code, 200)
+            self.assertEqual(post.call_args.kwargs['json']['model'], get_default_model())
+        self.assertEqual(store.get_preferences()['defaultModel'], 'removed/model')
+
+    def test_valid_saved_and_explicit_models_keep_precedence(self):
+        saved_model = get_models()[-1]['slug']
+        store.write_value('preferences', {'defaultModel': saved_model, 'instructions': ''})
+        self.assertEqual(resolve_model(), saved_model)
+        self.assertEqual(resolve_model(get_default_model()), get_default_model())
+        # Invalid explicit choices must still reach the caller's validation.
+        self.assertEqual(resolve_model('unknown/model'), 'unknown/model')
 
     def test_extraction_is_a_draft_and_failure_preserves_profile(self):
         self.save()
