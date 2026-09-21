@@ -5,7 +5,7 @@ from unittest.mock import patch
 from pydantic import ValidationError
 
 from backend.api_service import ai_service
-from backend.errors import InvalidProviderResponseError, ProviderRequestError
+from backend.errors import InvalidProviderResponseError, InvalidStructuredOutputError, ProviderRequestError
 from backend.models.llm_outputs import FullResumeDraft
 from backend.models.profile import Candidate
 
@@ -80,23 +80,29 @@ class StructuredOutputTests(unittest.TestCase):
         ):
             for payload in ({'choices': []}, {'choices': [{'message': {'content': ''}}]}):
                 with self.subTest(function=function.__name__, payload=payload):
+                    post.reset_mock()
                     post.return_value.json.return_value = payload
-                    with self.assertRaises(InvalidProviderResponseError):
+                    retries_empty_content = function is ai_service.call_openrouter_json and bool(payload['choices'])
+                    error = InvalidStructuredOutputError if retries_empty_content else InvalidProviderResponseError
+                    with self.assertRaises(error):
                         function('Instruction', 'Prompt', 'test-model', **kwargs)
+                    self.assertEqual(post.call_count, 2 if retries_empty_content else 1)
 
     @patch.object(ai_service, 'is_allowed_model', return_value=True)
     @patch.object(ai_service, 'get_api_key', return_value='test-key')
     @patch.object(ai_service.httpx, 'post')
-    def test_invalid_output_raises_in_helper(self, post, *_):
+    def test_invalid_output_raises_in_helper_without_retries(self, post, *_):
         post.return_value.status_code = 200
         for content, error in [('not json', json.JSONDecodeError), ('{"skills": 42}', ValidationError)]:
             with self.subTest(content=content):
+                post.reset_mock()
                 post.return_value.json.return_value = {'choices': [{'message': {'content': content}}]}
                 with self.assertRaises(error):
                     ai_service.call_openrouter_json(
                         'Return a resume.', 'Candidate facts', 'test-model',
-                        response_model=FullResumeDraft,
+                        response_model=FullResumeDraft, max_retries=0,
                     )
+                self.assertEqual(post.call_count, 1)
 
     @patch.object(ai_service, 'build_application_context', return_value='Candidate facts')
     @patch.object(ai_service, 'is_allowed_model', return_value=True)
@@ -105,15 +111,32 @@ class StructuredOutputTests(unittest.TestCase):
     def test_resume_retries_parse_and_validation_errors(self, post, *_):
         post.return_value.status_code = 200
         draft = {'skills': [], 'experience': [], 'projects': []}
-        post.return_value.json.side_effect = [
-            {'choices': [{'message': {'content': content}}]}
-            for content in ('not json', '{"skills": 42}', json.dumps(draft))
-        ]
+        for invalid in ('not json', '{"skills": 42}'):
+            with self.subTest(invalid=invalid):
+                post.reset_mock()
+                post.return_value.json.side_effect = [
+                    {'choices': [{'message': {'content': content}}]}
+                    for content in (invalid, json.dumps(draft))
+                ]
+                result = ai_service.generate_full_resume_draft(
+                    'Job', 'Company', '', {}, {}, [], model='test-model',
+                )
+                self.assertEqual(result, draft)
+                self.assertEqual(post.call_count, 2)
+                first, retry = [call.kwargs['json'] for call in post.call_args_list]
+                self.assertEqual(retry['messages'][:-1], first['messages'])
+                feedback = retry['messages'][-1]['content']
+                self.assertIn('Invalid JSON' if invalid == 'not json' else 'skills', feedback)
+
+    @patch.object(ai_service, 'build_application_context', return_value='Candidate facts')
+    @patch.object(ai_service, 'is_allowed_model', return_value=True)
+    @patch.object(ai_service, 'get_api_key', return_value='test-key')
+    @patch.object(ai_service.httpx, 'post')
+    def test_resume_stops_when_helper_retry_is_exhausted(self, post, *_):
+        post.return_value.status_code = 200
+        post.return_value.json.return_value = {'choices': [{'message': {'content': 'not json'}}]}
         result = ai_service.generate_full_resume_draft(
             'Job', 'Company', '', {}, {}, [], model='test-model',
         )
-        self.assertEqual(result, draft)
-        self.assertEqual(post.call_count, 3)
-        retry_prompt = post.call_args.kwargs['json']['messages'][1]['content']
-        self.assertIn('Attempt 1 validation error:', retry_prompt)
-        self.assertIn('Attempt 2 validation error:', retry_prompt)
+        self.assertEqual(result['error'], 'The model returned an invalid response. Please try again.')
+        self.assertEqual(post.call_count, 2)

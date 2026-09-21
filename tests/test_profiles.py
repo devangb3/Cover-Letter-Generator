@@ -189,7 +189,7 @@ class ProfileTests(unittest.TestCase):
                 self.assertIn('not a string', feedback)
                 self.assertIn('Invalid JSON' if invalid == 'not json' else 'answers.0', feedback)
 
-    def test_question_answers_recover_on_second_retry(self):
+    def test_question_answers_stop_after_one_retry(self):
         self.save()
         store.save_api_key('test-key')
         valid = {'answers': [{'question': 'Why?', 'answer': 'I design accessible forms.'}]}
@@ -200,9 +200,11 @@ class ProfileTests(unittest.TestCase):
                 for content in ('not json', '{"answers": ["invalid"]}', json.dumps(valid))
             ]
             response = self.client.post('/api/answer-questions', json={'questions': 'Why?'})
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.json['answers'], valid['answers'])
-            self.assertEqual(post.call_count, 3)
+            self.assertEqual(response.status_code, 502)
+            self.assertEqual(response.json, {
+                'error': 'The model returned an invalid response. Please try again.',
+            })
+            self.assertEqual(post.call_count, 2)
 
     def test_question_answers_exhausted_retry_returns_safe_502(self):
         self.save()
@@ -216,7 +218,7 @@ class ProfileTests(unittest.TestCase):
                 }
                 with self.assertLogs('api_service', level='WARNING') as logs:
                     response = self.client.post('/api/answer-questions', json={'questions': 'Why?'})
-                self.assertEqual(post.call_count, 3)
+                self.assertEqual(post.call_count, 2)
                 self.assertEqual(response.status_code, 502)
                 self.assertEqual(response.json, {
                     'error': 'The model returned an invalid response. Please try again.',
