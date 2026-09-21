@@ -4,6 +4,8 @@ vevn/
 __pycache__/
 *.pyc
 .env
+/data/
+/logs/
 /frontend/node_modules/
 output/
 pdf_service/build/

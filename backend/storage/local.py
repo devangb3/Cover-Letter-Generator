@@ -1,24 +1,20 @@
-"""Single-user local persistence, independent of the source checkout."""
 import json
 from contextlib import contextmanager
 import os
 from pathlib import Path
 import sqlite3
-import sys
 
 from backend.models.profile import Preferences
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def data_dir():
     override = os.environ.get("COVER_LETTER_DATA_DIR")
     if override:
         path = Path(override).expanduser()
-    elif sys.platform == "win32":
-        path = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "CoverLetterGenerator"
-    elif sys.platform == "darwin":
-        path = Path.home() / "Library/Application Support/CoverLetterGenerator"
     else:
-        path = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "cover-letter-generator"
+        path = PROJECT_ROOT / "data"
     path.mkdir(parents=True, exist_ok=True, mode=0o700)
     return path
 
@@ -72,5 +68,4 @@ def save_api_key(key):
     with os.fdopen(fd, "w") as stream:
         stream.write(key.strip())
     path.chmod(0o600)
-
 

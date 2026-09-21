@@ -8,7 +8,7 @@ import tempfile
 import traceback
 from datetime import datetime
 
-from backend.storage.local import output_dir, data_dir
+from backend.storage.local import output_dir
 
 from pypdf import PdfReader, PdfWriter
 import yaml
@@ -358,7 +358,7 @@ def compile_tex_to_pdf(
     min_text_chars: int = 0,
 ):
     try:
-        work_root = str(data_dir() / "build")
+        work_root = os.path.join(os.path.dirname(__file__), "build")
         os.makedirs(work_root, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=work_root) as td:
             tex_path = os.path.join(td, "resume.tex")

@@ -42,13 +42,13 @@ Use **Edit profile** to update saved information. Edits take effect after **Save
 
 ## Local data and privacy
 
-Data is stored separately from the repository:
+Runtime files are stored in gitignored directories at the project root:
 
-- Linux: `~/.local/share/cover-letter-generator` (or `$XDG_DATA_HOME/cover-letter-generator`)
-- macOS: `~/Library/Application Support/CoverLetterGenerator`
-- Windows: `%LOCALAPPDATA%/CoverLetterGenerator`
+- `data/`: profile and preferences (`profile.sqlite3`), saved API key (`openrouter-key`), and generated PDFs (`output/`).
+- `logs/backend.log`: application logs, also written to the console.
 
-Set `COVER_LETTER_DATA_DIR` to choose another location. Profiles and preferences live in SQLite; the API key is in a separate plaintext file with owner-only permissions on POSIX. Generated PDFs and logs also live under this directory. Keep the directory private and back it up appropriately. Updating the checkout does not replace it.
+Set `COVER_LETTER_DATA_DIR` to choose another data location; logs still go to `logs/`. The API key is stored in plaintext with owner-only permissions on POSIX. Keep these directories private and back up `data/` before deleting or replacing the checkout. Paths are resolved from the project root, independent of the working directory.
+
 
 The interface and storage are local, but **AI requests send resume text/profile context to OpenRouter and the selected provider**, using your credits. Uploaded PDFs are processed in memory and are not retained. The server binds to loopback and expects same-origin access; this is a single-user local application, not a hosted multi-user service.
 
