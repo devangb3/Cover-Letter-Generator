@@ -546,6 +546,109 @@ textarea {
   cursor: not-allowed;
 }
 
+.sidebar-links {
+  flex-shrink: 0;
+  padding: 16px 20px 10px;
+  border-top: 1px solid var(--border-muted);
+  background: var(--bg-surface);
+}
+
+.sidebar-links-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.sidebar-links-label {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sidebar-links-hint {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.sidebar-links-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.sidebar-link-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  padding: 0 12px;
+  gap: 8px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+
+.sidebar-link-icon {
+  display: flex;
+  color: var(--text-heading);
+}
+
+.sidebar-link-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.sidebar-link-button--portfolio .sidebar-link-icon {
+  color: var(--violet-hover);
+}
+
+.sidebar-link-button--linkedin .sidebar-link-icon {
+  color: #70b5f9;
+}
+
+.sidebar-link-copy {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.sidebar-link-button:hover:not(:disabled) {
+  background: var(--secondary-bg);
+  border-color: var(--text-muted);
+}
+
+.sidebar-link-button.is-copied,
+.sidebar-link-button.is-copied .sidebar-link-copy {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.sidebar-link-button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.sidebar-link-button:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 3px;
+}
+
+.sidebar-links-status {
+  min-height: 16px;
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
 /* ─── Resize handle ───────────────────────────────── */
 
 .resize-handle {

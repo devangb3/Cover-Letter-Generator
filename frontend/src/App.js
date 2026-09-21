@@ -121,6 +121,30 @@ function DownloadIcon({ className }) {
   );
 }
 
+function ProfileLinkIcon({ kind }) {
+  if (kind === 'github') {
+    return (
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 .75a11.25 11.25 0 0 0-3.56 21.92c.56.1.77-.24.77-.54v-2.1c-3.13.68-3.79-1.33-3.79-1.33-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.73 1.16 1.73 1.16 1 1.72 2.64 1.22 3.28.93.1-.73.39-1.23.71-1.51-2.5-.28-5.13-1.25-5.13-5.56 0-1.23.44-2.23 1.16-3.02-.12-.28-.5-1.43.11-2.98 0 0 .95-.3 3.09 1.15a10.75 10.75 0 0 1 5.63 0c2.15-1.46 3.09-1.15 3.09-1.15.62 1.55.23 2.7.12 2.98.72.79 1.15 1.79 1.15 3.02 0 4.32-2.63 5.27-5.14 5.55.4.35.76 1.03.76 2.08v3.42c0 .3.2.65.78.54A11.25 11.25 0 0 0 12 .75Z" />
+      </svg>
+    );
+  }
+  if (kind === 'linkedin') {
+    return (
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M20.45 2H3.55C2.69 2 2 2.68 2 3.52v16.96c0 .84.69 1.52 1.55 1.52h16.9c.86 0 1.55-.68 1.55-1.52V3.52c0-.84-.69-1.52-1.55-1.52ZM7.93 18.75H4.98V9.2h2.95v9.55ZM6.45 7.9a1.71 1.71 0 1 1 0-3.42 1.71 1.71 0 0 1 0 3.42Zm12.3 10.85H15.8V14.1c0-1.1-.02-2.52-1.54-2.52-1.54 0-1.77 1.2-1.77 2.44v4.73H9.54V9.2h2.83v1.3h.04c.4-.75 1.36-1.54 2.8-1.54 3 0 3.54 1.97 3.54 4.53v5.26Z" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <ellipse cx="12" cy="12" rx="4" ry="9" />
+      <path d="M3 12h18M5 6.5h14M5 17.5h14" />
+    </svg>
+  );
+}
+
 function StopIcon({ className }) {
   return (
     <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -161,7 +185,34 @@ export function Workspace({ profile, onEditProfile, onSettings, preferences }) {
   const [resumeWarning, setResumeWarning] = useState(null);
   const [questionError, setQuestionError] = useState(null);
   const [emailError, setEmailError] = useState(null);
+  const [linkCopyStatus, setLinkCopyStatus] = useState('');
+  const [copiedLink, setCopiedLink] = useState(null);
+  useEffect(() => {
+    if (!copiedLink) return;
+    const timeout = setTimeout(() => {
+      setCopiedLink(null);
+      setLinkCopyStatus('');
+    }, 2200);
+    return () => clearTimeout(timeout);
+  }, [copiedLink]);
   const personalInfo = { ...profile.profile, address: profile.profile.location };
+  const profileLinks = [
+    { label: 'Portfolio', kind: 'portfolio', url: personalInfo.website?.trim() },
+    { label: 'GitHub', kind: 'github', url: personalInfo.github?.trim() },
+    { label: 'LinkedIn', kind: 'linkedin', url: personalInfo.linkedin?.trim() },
+  ];
+  const handleCopyProfileLink = async (label, url) => {
+    if (!url) return;
+    setLinkCopyStatus('');
+    setCopiedLink(null);
+    try {
+      await copyTextToClipboard(url);
+      setLinkCopyStatus(`${label} link copied.`);
+      setCopiedLink(label);
+    } catch {
+      setLinkCopyStatus(`Unable to copy ${label} link. Please try again.`);
+    }
+  };
   const activeAiRequestRef = useRef(null);
 
   /* Resize state */
@@ -622,6 +673,34 @@ export function Workspace({ profile, onEditProfile, onSettings, preferences }) {
               </div>
             </div>
 
+          </div>
+          <div className="sidebar-links" role="group" aria-label="Copy profile links">
+            <div className="sidebar-links-heading">
+              <span className="sidebar-links-label">Your links</span>
+              <span className="sidebar-links-hint">Click to copy</span>
+            </div>
+            <div className="sidebar-links-actions">
+              {profileLinks.map(({ label, kind, url }) => (
+                <button
+                  key={label}
+                  type="button"
+                  className={`sidebar-link-button sidebar-link-button--${kind}${copiedLink === label ? ' is-copied' : ''}`}
+                  disabled={!url}
+                  aria-label={`Copy ${label} link`}
+                  title={url ? `Copy ${label} link: ${url}` : `Add your ${label} link in Profile`}
+                  onClick={() => handleCopyProfileLink(label, url)}
+                >
+                  <span className="sidebar-link-icon"><ProfileLinkIcon kind={kind} /></span>
+                  <svg className="sidebar-link-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    {copiedLink === label ? <path d="m5 12 4 4L19 6" /> : <>
+                      <rect x="9" y="9" width="12" height="12" rx="2" />
+                      <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+                    </>}
+                  </svg>
+                </button>
+              ))}
+            </div>
+            <p className="sidebar-links-status" role="status">{linkCopyStatus}</p>
           </div>
         </div>
 
