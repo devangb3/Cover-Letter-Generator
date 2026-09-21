@@ -262,6 +262,21 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(self.client.put('/api/settings', json={'apiKey': 'bad'}, headers={'Origin': 'https://untrusted.example'}).status_code, 403)
         self.assertEqual(self.client.get('/api/profile', headers={'Host': 'untrusted.example'}).status_code, 403)
 
+    def test_generation_guard_accepts_preserved_proxy_host(self):
+        from backend.http import guard_local_api
+
+        self.save()
+        for origin, rejected in [('http://localhost:3002', False), ('https://untrusted.example', True)]:
+            with self.app.test_request_context(
+                '/api/generate-full-resume', method='POST',
+                headers={'Host': 'localhost:3002', 'Origin': origin},
+            ):
+                result = guard_local_api()
+                if rejected:
+                    self.assertEqual(result[1], 403)
+                else:
+                    self.assertIsNone(result)
+
 
 if __name__ == '__main__':
     unittest.main()
