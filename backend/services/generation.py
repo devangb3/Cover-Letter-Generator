@@ -1,7 +1,7 @@
 """Application-generation use cases using the saved candidate."""
 from backend.api_service import ai_service
+from backend.errors import InvalidStructuredOutputError, ServiceError
 from backend.api_service.model_config import is_allowed_model
-from backend.services.errors import ServiceError
 from backend.services.profile import personal_info
 from backend.services.resume import generate_resume
 from backend.services.settings import resolve_model
@@ -20,7 +20,10 @@ def generate_application(kind, data):
         data.get('customInstructions', ''), personal_info(),
     )
     if kind == 'questions':
-        result = ai_service.generate_job_question_answers(*args, questions, model)
+        try:
+            result = ai_service.generate_job_question_answers(*args, questions, model)
+        except InvalidStructuredOutputError as exc:
+            raise ServiceError('The model returned an invalid response. Please try again.', 502) from exc
     elif kind == 'cover-letter':
         result = ai_service.generate_cover_letter(*args, model)
     elif kind == 'email':

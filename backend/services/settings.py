@@ -3,7 +3,7 @@ from pydantic import ValidationError
 
 from backend.api_service.model_config import get_default_model, is_allowed_model
 from backend.models.profile import Preferences
-from backend.services.errors import ServiceError
+from backend.errors import ServiceError
 from backend.storage import local as store
 
 

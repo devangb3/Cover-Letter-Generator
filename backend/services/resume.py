@@ -4,7 +4,7 @@ import logging
 import shutil
 
 from backend.services import profile as profile_store
-from backend.services.errors import ServiceError
+from backend.errors import ServiceError
 from backend.api_service.ai_service import build_full_resume_project_catalog, generate_full_resume_draft
 from pdf_service.resume_generator import compile_tex_to_pdf, render_full_resume_tex
 

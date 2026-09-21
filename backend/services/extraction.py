@@ -8,7 +8,7 @@ from backend.api_service.ai_service import call_openrouter_json
 from backend.api_service.model_config import is_allowed_model
 from backend.models.profile import Candidate, normalize_candidate
 from backend.storage.local import get_api_key
-from backend.services.errors import ServiceError
+from backend.errors import ServiceError
 from backend.services.settings import resolve_model
 
 

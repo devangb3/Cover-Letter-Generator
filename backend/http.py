@@ -5,7 +5,7 @@ from urllib.parse import urlsplit
 from flask import current_app, jsonify, request
 from werkzeug.exceptions import HTTPException
 
-from backend.services.errors import ServiceError
+from backend.errors import ServiceError
 from backend.storage.local import get_profile
 
 GENERATION_PATHS = { #surely there is a better way of doing this, cant we use decorators or something?

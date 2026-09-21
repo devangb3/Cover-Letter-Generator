@@ -6,10 +6,15 @@ import traceback
 from typing import Type, TypeVar
 
 import httpx
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from backend.storage.local import get_api_key, get_profile, get_preferences
 
+from backend.errors import (
+    InvalidProviderResponseError,
+    InvalidStructuredOutputError,
+    ProviderRequestError,
+)
 from backend.api_service.model_config import (
     get_base_url,
     get_default_model,
@@ -23,6 +28,7 @@ from backend.models.llm_outputs import (
 
 logger = logging.getLogger("api_service")
 ResponseModel = TypeVar("ResponseModel", bound=BaseModel)
+
 
 API_SERVICE_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.dirname(API_SERVICE_DIR)
@@ -164,19 +170,22 @@ def call_openrouter(system_instruction, prompt, selected_model, enable_web_searc
 
     if response.status_code >= 400:
         logger.error(f"OpenRouter API error {response.status_code}: {response.text}")
-        raise RuntimeError(f"OpenRouter API request failed with status {response.status_code}")
+        raise ProviderRequestError(
+            f"OpenRouter API request failed with status {response.status_code}",
+            response.status_code,
+        )
 
     response_data = response.json()
     choices = response_data.get("choices") or []
     if not choices:
         logger.error("OpenRouter response did not include any choices")
-        raise RuntimeError("OpenRouter response did not include any choices")
+        raise InvalidProviderResponseError("OpenRouter response did not include any choices")
 
     message = choices[0].get("message", {})
     response_text = parse_openrouter_content(message.get("content"))
     if not response_text:
         logger.error("No response text received from OpenRouter")
-        raise RuntimeError("No response text received from OpenRouter")
+        raise InvalidProviderResponseError("No response text received from OpenRouter")
 
     return response_text
 
@@ -190,8 +199,10 @@ def call_openrouter_json(
     enable_web_search=False,
     *,
     response_model: Type[ResponseModel],
+    max_retries: int = 1,
 ) -> ResponseModel:
-    """Request structured output and return a validated response model."""
+    """Return validated output, retrying invalid output up to max_retries times."""
+
     api_key = get_api_key()
     if not api_key:
         raise RuntimeError("Save your OpenRouter API key in Settings first.")
@@ -226,21 +237,57 @@ def call_openrouter_json(
         "Content-Type": "application/json",
     }
     endpoint = f"{get_base_url().rstrip('/')}/chat/completions"
-    response = httpx.post(endpoint, headers=headers, json=payload, timeout=120.0)
-    if response.status_code >= 400:
-        raise RuntimeError(f"OpenRouter API request failed with status {response.status_code}")
+    attempts = 1 + max_retries
+    for attempt in range(1, attempts + 1):
+        response = httpx.post(endpoint, headers=headers, json=payload, timeout=120.0)
+        if response.status_code >= 400:
+            raise ProviderRequestError(
+                f"OpenRouter API request failed with status {response.status_code}",
+                response.status_code,
+            )
 
-    response_data = response.json()
-    choices = response_data.get("choices") or []
-    if not choices:
-        raise RuntimeError("OpenRouter response did not include any choices")
+        response_data = response.json()
+        choices = response_data.get("choices") or []
+        if not choices:
+            raise InvalidProviderResponseError("OpenRouter response did not include any choices")
 
-    message = choices[0].get("message", {})
-    response_text = parse_openrouter_content(message.get("content"))
-    if not response_text:
-        raise RuntimeError("No response text received from OpenRouter")
-    json_response = parse_json_response(response_text)
-    return validate_pydantic_model(response_model, json_response)
+        message = choices[0].get("message", {})
+        response_text = parse_openrouter_content(message.get("content"))
+        if not response_text and max_retries == 0:
+            raise InvalidProviderResponseError("No response text received from OpenRouter")
+        try:
+            json_response = parse_json_response(response_text)
+            return validate_pydantic_model(response_model, json_response)
+        except (json.JSONDecodeError, ValidationError) as exc:
+            if max_retries == 0:
+                raise
+            if isinstance(exc, ValidationError):
+                feedback = "; ".join(
+                    f"{'.'.join(map(str, error['loc']))}: {error['msg']}"
+                    for error in exc.errors(include_input=False, include_context=False)
+                )
+            else:
+                feedback = f"Invalid JSON: {exc.msg} at line {exc.lineno}, column {exc.colno}"
+            logger.warning(
+                "Invalid structured output attempt=%s/%s requested_model=%s model=%s "
+                "provider=%s response_id=%s finish_reason=%s validation=%s",
+                attempt, attempts, selected_model, response_data.get('model'),
+                response_data.get('provider'), response_data.get('id'),
+                choices[0].get('finish_reason'), feedback,
+            )
+            if attempt == attempts:
+                raise InvalidStructuredOutputError(
+                    "The model returned an invalid response. Please try again."
+                ) from exc
+            correction = (
+                "Your previous response failed validation: " + feedback
+                + ". Generate the complete response again as valid JSON matching the schema. "
+            )
+            if response_model is JobQuestionAnswerResponse:
+                correction += "Each answers entry must be an object containing question and answer, not a string."
+            payload = {**payload, "messages": [
+                *payload["messages"], {"role": "user", "content": correction},
+            ]}
 
 
 def parse_questions(questions):
@@ -421,6 +468,7 @@ def generate_job_question_answers(
             prompt,
             model,
             response_model=JobQuestionAnswerResponse,
+            max_retries=1,
             max_tokens=None,
             temperature=None,
             enable_web_search=True,
@@ -431,6 +479,9 @@ def generate_job_question_answers(
             "answers": normalized_answers,
             "companyName": company_name,
         }
+    except InvalidStructuredOutputError:
+        logger.exception("Job question answers failed validation after exhausting retries")
+        raise
     except Exception as exc:
         logger.error(f"Error generating job question answers: {exc}")
         logger.error(traceback.format_exc())

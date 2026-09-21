@@ -3,7 +3,7 @@ from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
 
 from backend.models.profile import normalize_candidate
-from backend.services.errors import ServiceError
+from backend.errors import ServiceError
 from backend.services.extraction import extract_profile
 from backend.storage import local as store
 

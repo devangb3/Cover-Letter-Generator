@@ -5,6 +5,7 @@ from unittest.mock import patch
 from pydantic import ValidationError
 
 from backend.api_service import ai_service
+from backend.errors import InvalidProviderResponseError, ProviderRequestError
 from backend.models.llm_outputs import FullResumeDraft
 from backend.models.profile import Candidate
 
@@ -60,12 +61,28 @@ class StructuredOutputTests(unittest.TestCase):
         self.assertEqual(payload['tools'], [ai_service.WEB_SEARCH_TOOL])
 
         post.return_value.status_code = 400
-        with self.assertRaisesRegex(RuntimeError, 'status 400'):
+        with self.assertRaisesRegex(ProviderRequestError, 'status 400') as error:
             ai_service.call_openrouter_json(
                 'Return a resume.', 'Candidate facts', 'test-model',
                 response_model=FullResumeDraft,
             )
+        self.assertEqual(error.exception.status_code, 400)
         self.assertEqual(post.call_count, 2)  # No fallback to unconstrained output.
+
+    @patch.object(ai_service, 'is_allowed_model', return_value=True)
+    @patch.object(ai_service, 'get_api_key', return_value='test-key')
+    @patch.object(ai_service.httpx, 'post')
+    def test_missing_provider_response_data_raises_typed_error(self, post, *_):
+        post.return_value.status_code = 200
+        for function, kwargs in (
+            (ai_service.call_openrouter, {}),
+            (ai_service.call_openrouter_json, {'response_model': FullResumeDraft}),
+        ):
+            for payload in ({'choices': []}, {'choices': [{'message': {'content': ''}}]}):
+                with self.subTest(function=function.__name__, payload=payload):
+                    post.return_value.json.return_value = payload
+                    with self.assertRaises(InvalidProviderResponseError):
+                        function('Instruction', 'Prompt', 'test-model', **kwargs)
 
     @patch.object(ai_service, 'is_allowed_model', return_value=True)
     @patch.object(ai_service, 'get_api_key', return_value='test-key')

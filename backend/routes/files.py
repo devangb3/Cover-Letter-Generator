@@ -2,7 +2,7 @@
 from flask import Blueprint, send_from_directory
 from werkzeug.exceptions import NotFound
 
-from backend.services.errors import ServiceError
+from backend.errors import ServiceError
 from backend.storage.local import output_dir
 
 api = Blueprint('files', __name__, url_prefix='/api')

@@ -163,6 +163,78 @@ class ProfileTests(unittest.TestCase):
             self.assertNotIn('Devang', tex)
         self.assertEqual(store.get_profile(), self.candidate)
 
+    def test_question_answers_retry_invalid_output_and_recover(self):
+        self.save()
+        store.save_api_key('test-key')
+        valid = {'answers': [{'question': 'Why?', 'answer': 'I design accessible forms.'}]}
+        invalid_outputs = [
+            'not json',
+            json.dumps({'answers': [json.dumps({'completionState': 'incomplete', 'type': 'Object'})]}),
+        ]
+        for invalid in invalid_outputs:
+            with self.subTest(invalid=invalid), patch.object(ai_service.httpx, 'post') as post:
+                post.return_value.status_code = 200
+                post.return_value.json.side_effect = [
+                    {'choices': [{'message': {'content': content}}]}
+                    for content in (invalid, json.dumps(valid))
+                ]
+                response = self.client.post('/api/answer-questions', json={'questions': 'Why?'})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json['answers'], valid['answers'])
+                self.assertEqual(post.call_count, 2)
+                first, retry = [call.kwargs['json'] for call in post.call_args_list]
+                self.assertEqual(retry['response_format'], first['response_format'])
+                self.assertEqual(retry['messages'][:-1], first['messages'])
+                feedback = retry['messages'][-1]['content']
+                self.assertIn('not a string', feedback)
+                self.assertIn('Invalid JSON' if invalid == 'not json' else 'answers.0', feedback)
+
+    def test_question_answers_recover_on_second_retry(self):
+        self.save()
+        store.save_api_key('test-key')
+        valid = {'answers': [{'question': 'Why?', 'answer': 'I design accessible forms.'}]}
+        with patch.object(ai_service.httpx, 'post') as post:
+            post.return_value.status_code = 200
+            post.return_value.json.side_effect = [
+                {'choices': [{'message': {'content': content}}]}
+                for content in ('not json', '{"answers": ["invalid"]}', json.dumps(valid))
+            ]
+            response = self.client.post('/api/answer-questions', json={'questions': 'Why?'})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json['answers'], valid['answers'])
+            self.assertEqual(post.call_count, 3)
+
+    def test_question_answers_exhausted_retry_returns_safe_502(self):
+        self.save()
+        store.save_api_key('test-key')
+        for invalid in ('not json', json.dumps({'answers': ['private malformed answer']})):
+            with self.subTest(invalid=invalid), patch.object(ai_service.httpx, 'post') as post:
+                post.return_value.status_code = 200
+                post.return_value.json.return_value = {
+                    'id': 'test-response', 'model': 'test-model', 'provider': 'test-provider',
+                    'choices': [{'finish_reason': 'stop', 'message': {'content': invalid}}],
+                }
+                with self.assertLogs('api_service', level='WARNING') as logs:
+                    response = self.client.post('/api/answer-questions', json={'questions': 'Why?'})
+                self.assertEqual(post.call_count, 3)
+                self.assertEqual(response.status_code, 502)
+                self.assertEqual(response.json, {
+                    'error': 'The model returned an invalid response. Please try again.',
+                })
+                self.assertIn('response_id=test-response', logs.output[0])
+                self.assertIn('provider=test-provider', logs.output[0])
+                self.assertIn('model=test-model', logs.output[0])
+                self.assertIn('finish_reason=stop', logs.output[0])
+
+    def test_question_answers_do_not_retry_http_errors(self):
+        self.save()
+        store.save_api_key('test-key')
+        with patch.object(ai_service.httpx, 'post') as post:
+            post.return_value.status_code = 401
+            response = self.client.post('/api/answer-questions', json={'questions': 'Why?'})
+            self.assertEqual(response.status_code, 500)
+            self.assertEqual(post.call_count, 1)
+
     def test_pdf_download_uses_local_output_and_saved_identity(self):
         from pypdf import PdfReader
         self.save()
